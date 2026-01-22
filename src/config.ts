@@ -2,14 +2,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
 function optionalEnv(name: string, defaultValue: string): string {
   return process.env[name] || defaultValue;
 }
@@ -18,6 +10,12 @@ export const config = {
   env: optionalEnv('NODE_ENV', 'development'),
   port: parseInt(optionalEnv('PORT', '3000'), 10),
   baseUrl: optionalEnv('BASE_URL', 'http://localhost:3000'),
+
+  // Demo mode: skips real email/SMS, uses code "123456"
+  demoMode: optionalEnv('DEMO_MODE', 'true') === 'true',
+
+  // Database type: 'sqlite' or 'mysql'
+  dbType: optionalEnv('DB_TYPE', 'sqlite') as 'sqlite' | 'mysql',
 
   db: {
     host: optionalEnv('DB_HOST', 'localhost'),
@@ -42,12 +40,13 @@ export const config = {
     from: optionalEnv('EMAIL_FROM', 'signatures@example.com'),
   },
 
-  apiKey: process.env.API_KEY || 'dev-api-key',
+  apiKey: process.env.API_KEY || 'demo-api-key',
 
   verification: {
     codeLength: 6,
     codeExpiryMinutes: 5,
     maxAttempts: 3,
+    demoCode: '123456', // Fixed code for demo mode
   },
 
   request: {
@@ -56,16 +55,22 @@ export const config = {
 };
 
 export function validateConfig(): void {
+  // In demo mode, skip validation
+  if (config.demoMode) {
+    console.log('Running in DEMO MODE - email/SMS verification disabled');
+    return;
+  }
+
   const errors: string[] = [];
 
-  if (config.env === 'production') {
+  if (config.env === 'production' && !config.demoMode) {
     if (!config.twilio.accountSid) {
       errors.push('TWILIO_ACCOUNT_SID is required in production');
     }
     if (!config.email.user) {
       errors.push('SMTP_USER is required in production');
     }
-    if (config.apiKey === 'dev-api-key') {
+    if (config.apiKey === 'demo-api-key') {
       errors.push('API_KEY must be set to a secure value in production');
     }
   }

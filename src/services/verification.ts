@@ -1,7 +1,8 @@
-import { SignatureRequest, SignatureToken, VerificationMethod } from '../types';
+import { SignatureRequest, SignatureToken } from '../types';
 import { setVerificationCode, verifyCode } from '../db/queries';
 import { sendVerificationEmail } from './email';
 import { sendVerificationSms } from './twilio';
+import { config } from '../config';
 
 export type SendMethod = 'email' | 'sms';
 
@@ -29,6 +30,13 @@ export async function sendVerificationCode(
   try {
     // Generate and store the code
     const code = await setVerificationCode(token.id);
+
+    // In demo mode, just log the code and skip actual sending
+    if (config.demoMode) {
+      console.log(`[DEMO MODE] Verification code for ${request.signer_name}: ${code}`);
+      console.log(`[DEMO MODE] Would send to: ${method === 'email' ? request.signer_email : request.signer_phone}`);
+      return { success: true };
+    }
 
     // Send via the appropriate channel
     if (method === 'email') {

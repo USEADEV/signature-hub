@@ -11,7 +11,6 @@ import {
   getRequestById,
   getRequestByToken,
   getTokenByValue,
-  getTokenByRequestId,
   createSignature as dbCreateSignature,
   getSignatureByRequestId,
   updateRequestStatus,
@@ -25,28 +24,31 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
 
   const signUrl = `${config.baseUrl}/sign/${token.token}`;
 
-  // Send notification to signer
-  try {
-    if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
-      await sendSignatureRequestEmail(
-        input.signerEmail,
-        input.signerName,
-        input.documentName,
-        signUrl
-      );
-      await updateRequestStatus(request.id, 'sent');
-    } else if (input.signerPhone && input.verificationMethod === 'sms') {
-      await sendSignatureRequestSms(
-        input.signerPhone,
-        input.signerName,
-        input.documentName,
-        signUrl
-      );
-      await updateRequestStatus(request.id, 'sent');
+  // Send notification to signer (skip in demo mode)
+  if (!config.demoMode) {
+    try {
+      if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
+        await sendSignatureRequestEmail(
+          input.signerEmail,
+          input.signerName,
+          input.documentName,
+          signUrl
+        );
+        await updateRequestStatus(request.id, 'sent');
+      } else if (input.signerPhone && input.verificationMethod === 'sms') {
+        await sendSignatureRequestSms(
+          input.signerPhone,
+          input.signerName,
+          input.documentName,
+          signUrl
+        );
+        await updateRequestStatus(request.id, 'sent');
+      }
+    } catch (error) {
+      console.error('Failed to send notification:', error);
     }
-  } catch (error) {
-    console.error('Failed to send notification:', error);
-    // Continue even if notification fails - the link can still be shared manually
+  } else {
+    console.log(`[DEMO MODE] Signature request created. Sign URL: ${signUrl}`);
   }
 
   return {
@@ -132,21 +134,25 @@ export async function submitSignature(
     input.consentText
   );
 
-  // Send confirmation
-  try {
-    if (request.signer_email) {
-      await sendSignatureConfirmationEmail(
-        request.signer_email,
-        request.signer_name,
-        request.document_name,
-        signature.signed_at
-      );
+  // Send confirmation (skip in demo mode)
+  if (!config.demoMode) {
+    try {
+      if (request.signer_email) {
+        await sendSignatureConfirmationEmail(
+          request.signer_email,
+          request.signer_name,
+          request.document_name,
+          signature.signed_at
+        );
+      }
+      if (request.signer_phone && request.verification_method !== 'email') {
+        await sendSignatureConfirmationSms(request.signer_phone, request.document_name);
+      }
+    } catch (error) {
+      console.error('Failed to send confirmation:', error);
     }
-    if (request.signer_phone && request.verification_method !== 'email') {
-      await sendSignatureConfirmationSms(request.signer_phone, request.document_name);
-    }
-  } catch (error) {
-    console.error('Failed to send confirmation:', error);
+  } else {
+    console.log(`[DEMO MODE] Document signed by ${request.signer_name}`);
   }
 
   // Send callback to ShowConnect if configured

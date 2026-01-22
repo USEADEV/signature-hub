@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignatureHub - Demo</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .demo-banner {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      margin: -30px -30px 30px -30px;
+      border-radius: 8px 8px 0 0;
+    }
+    .demo-banner h1 {
+      margin: 0 0 5px 0;
+      font-size: 1.5rem;
+    }
+    .demo-banner p {
+      margin: 0;
+      opacity: 0.9;
+    }
+    .demo-form {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #333;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e4e8;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .result-box {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      border-radius: 6px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .result-box h3 {
+      margin: 0 0 10px 0;
+      color: #155724;
+    }
+    .result-box a {
+      color: #007bff;
+      word-break: break-all;
+    }
+    .hint-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    .hint-box h4 {
+      margin: 0 0 10px 0;
+      color: #856404;
+    }
+    .hint-box code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .feature {
+      text-align: center;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    .feature h3 {
+      margin: 0 0 5px 0;
+      font-size: 1rem;
+    }
+    .feature p {
+      margin: 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <main>
+      <div class="demo-banner">
+        <h1>SignatureHub Demo</h1>
+        <p>Document signature application for ShowConnect</p>
+      </div>
+
+      <div class="demo-form">
+        <h2>Create Test Signature Request</h2>
+        <p>Fill in the form below to create a signature request and test the signing flow.</p>
+
+        <div class="form-group">
+          <label for="documentName">Document Name</label>
+          <input type="text" id="documentName" value="Entry Agreement 2024" placeholder="e.g., Entry Agreement 2024">
+        </div>
+
+        <div class="form-group">
+          <label for="signerName">Signer Name</label>
+          <input type="text" id="signerName" value="John Doe" placeholder="e.g., John Doe">
+        </div>
+
+        <div class="form-group">
+          <label for="signerEmail">Signer Email</label>
+          <input type="email" id="signerEmail" value="test@example.com" placeholder="e.g., test@example.com">
+        </div>
+
+        <div class="form-group">
+          <label for="documentContent">Document Content (HTML)</label>
+          <textarea id="documentContent" placeholder="Optional: HTML content to display"><h3>Entry Agreement</h3><p>By signing this document, I agree to the following terms and conditions for participating in the horse show event:</p><ul><li>I understand and accept all risks associated with equestrian activities</li><li>I agree to follow all safety rules and guidelines</li><li>I confirm that all information provided is accurate</li></ul><p>This agreement is binding upon signature.</p></textarea>
+        </div>
+
+        <button id="createBtn" class="btn btn-primary" style="width: 100%;">Create Signature Request</button>
+
+        <div id="result" class="result-box hidden">
+          <h3>Signature Request Created!</h3>
+          <p><strong>Sign URL:</strong></p>
+          <p><a id="signUrl" href="#" target="_blank"></a></p>
+          <p style="margin-top: 15px;">
+            <a id="openSignUrl" href="#" target="_blank" class="btn btn-primary">Open Signing Page</a>
+          </p>
+        </div>
+
+        <div class="hint-box">
+          <h4>Demo Mode Info</h4>
+          <p>In demo mode, no emails or SMS are sent. When verifying your identity, use the code: <code>123456</code></p>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">&#128274;</div>
+          <h3>2FA Verification</h3>
+          <p>Email or SMS verification codes</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">&#9997;</div>
+          <h3>Dual Signing</h3>
+          <p>Type or draw your signature</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">&#128241;</div>
+          <h3>Mobile Ready</h3>
+          <p>Works on any device</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">&#128203;</div>
+          <h3>Audit Trail</h3>
+          <p>Full logging and compliance</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>&copy; 2024 SignatureHub. Secure document signing for ShowConnect.</p>
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById('createBtn').addEventListener('click', async function() {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        const response = await fetch('/api/requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'demo-api-key'
+          },
+          body: JSON.stringify({
+            documentName: document.getElementById('documentName').value,
+            signerName: document.getElementById('signerName').value,
+            signerEmail: document.getElementById('signerEmail').value,
+            documentContent: document.getElementById('documentContent').value,
+            verificationMethod: 'email'
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('signUrl').href = data.signUrl;
+          document.getElementById('signUrl').textContent = data.signUrl;
+          document.getElementById('openSignUrl').href = data.signUrl;
+          document.getElementById('result').classList.remove('hidden');
+        } else {
+          alert('Error: ' + (data.error || 'Failed to create request'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Signature Request';
+      }
+    });
+  </script>
+</body>
+</html>

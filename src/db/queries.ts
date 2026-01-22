@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import { query, queryOne } from './connection';
+import { config } from '../config';
 import {
   SignatureRequest,
   SignatureToken,
@@ -9,16 +9,64 @@ import {
   RequestFilters,
   RequestStatus,
 } from '../types';
-import { config } from '../config';
+
+// Import database modules
+import { query as mysqlQuery, queryOne as mysqlQueryOne } from './connection';
+import { getSqliteDb } from './sqlite';
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
 function generateVerificationCode(): string {
+  if (config.demoMode) {
+    return config.verification.demoCode;
+  }
   const min = Math.pow(10, config.verification.codeLength - 1);
   const max = Math.pow(10, config.verification.codeLength) - 1;
   return Math.floor(min + Math.random() * (max - min + 1)).toString();
+}
+
+// Helper for SQLite queries
+function sqliteQuery<T>(sql: string, params: unknown[] = []): T[] {
+  const db = getSqliteDb();
+  const stmt = db.prepare(sql);
+  return stmt.all(...params) as T[];
+}
+
+function sqliteQueryOne<T>(sql: string, params: unknown[] = []): T | null {
+  const results = sqliteQuery<T>(sql, params);
+  return results.length > 0 ? results[0] : null;
+}
+
+function sqliteRun(sql: string, params: unknown[] = []): void {
+  const db = getSqliteDb();
+  const stmt = db.prepare(sql);
+  stmt.run(...params);
+}
+
+// Generic query functions that route to the right DB
+async function query<T>(sql: string, params: unknown[] = []): Promise<T> {
+  if (config.dbType === 'sqlite') {
+    // Convert MySQL placeholders (?) to SQLite format (already compatible)
+    return sqliteQuery<T>(sql.replace(/NOW\(\)/g, "datetime('now')"), params) as T;
+  }
+  return mysqlQuery<T>(sql, params);
+}
+
+async function queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> {
+  if (config.dbType === 'sqlite') {
+    return sqliteQueryOne<T>(sql.replace(/NOW\(\)/g, "datetime('now')"), params);
+  }
+  return mysqlQueryOne<T>(sql, params);
+}
+
+async function run(sql: string, params: unknown[] = []): Promise<void> {
+  if (config.dbType === 'sqlite') {
+    sqliteRun(sql.replace(/NOW\(\)/g, "datetime('now')"), params);
+    return;
+  }
+  await mysqlQuery(sql, params);
 }
 
 // Signature Requests
@@ -29,8 +77,9 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
   const token = generateToken();
 
   const expiresAt = input.expiresAt || new Date(Date.now() + config.request.defaultExpiryDays * 24 * 60 * 60 * 1000);
+  const expiresAtStr = expiresAt.toISOString();
 
-  await query(
+  await run(
     `INSERT INTO signature_requests
      (id, external_ref, external_type, document_name, document_content, document_url,
       signer_name, signer_email, signer_phone, verification_method, status, expires_at, callback_url, created_by)
@@ -46,13 +95,13 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
       input.signerEmail || null,
       input.signerPhone || null,
       input.verificationMethod || 'email',
-      expiresAt,
+      expiresAtStr,
       input.callbackUrl || null,
       input.createdBy || null,
     ]
   );
 
-  await query(
+  await run(
     `INSERT INTO signature_tokens (id, request_id, token) VALUES (?, ?, ?)`,
     [tokenId, requestId, token]
   );
@@ -80,17 +129,17 @@ export async function getRequestByToken(token: string): Promise<SignatureRequest
 }
 
 export async function updateRequestStatus(id: string, status: RequestStatus): Promise<void> {
-  const updates: string[] = ['status = ?'];
-  const params: unknown[] = [status];
-
   if (status === 'signed') {
-    updates.push('signed_at = NOW()');
+    await run(
+      `UPDATE signature_requests SET status = ?, signed_at = NOW() WHERE id = ?`,
+      [status, id]
+    );
+  } else {
+    await run(
+      `UPDATE signature_requests SET status = ? WHERE id = ?`,
+      [status, id]
+    );
   }
-
-  await query(
-    `UPDATE signature_requests SET ${updates.join(', ')} WHERE id = ?`,
-    [...params, id]
-  );
 }
 
 export async function listRequests(filters: RequestFilters): Promise<SignatureRequest[]> {
@@ -129,7 +178,12 @@ export async function listRequests(filters: RequestFilters): Promise<SignatureRe
 }
 
 export async function deleteRequest(id: string): Promise<boolean> {
-  const result = await query<{ affectedRows: number }>(
+  if (config.dbType === 'sqlite') {
+    const db = getSqliteDb();
+    const result = db.prepare('DELETE FROM signature_requests WHERE id = ?').run(id);
+    return result.changes > 0;
+  }
+  const result = await mysqlQuery<{ affectedRows: number }>(
     `DELETE FROM signature_requests WHERE id = ?`,
     [id]
   );
@@ -139,28 +193,37 @@ export async function deleteRequest(id: string): Promise<boolean> {
 // Signature Tokens
 
 export async function getTokenByRequestId(requestId: string): Promise<SignatureToken | null> {
-  return queryOne<SignatureToken>(
+  const token = await queryOne<SignatureToken>(
     `SELECT * FROM signature_tokens WHERE request_id = ?`,
     [requestId]
   );
+  if (token && config.dbType === 'sqlite') {
+    // Convert SQLite integer to boolean
+    token.is_verified = Boolean(token.is_verified);
+  }
+  return token;
 }
 
 export async function getTokenByValue(token: string): Promise<SignatureToken | null> {
-  return queryOne<SignatureToken>(
+  const result = await queryOne<SignatureToken>(
     `SELECT * FROM signature_tokens WHERE token = ?`,
     [token]
   );
+  if (result && config.dbType === 'sqlite') {
+    result.is_verified = Boolean(result.is_verified);
+  }
+  return result;
 }
 
 export async function setVerificationCode(tokenId: string): Promise<string> {
   const code = generateVerificationCode();
   const expiresAt = new Date(Date.now() + config.verification.codeExpiryMinutes * 60 * 1000);
 
-  await query(
+  await run(
     `UPDATE signature_tokens
      SET verification_code = ?, code_expires_at = ?, code_attempts = 0
      WHERE id = ?`,
-    [code, expiresAt, tokenId]
+    [code, expiresAt.toISOString(), tokenId]
   );
 
   return code;
@@ -176,7 +239,10 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
     return { success: false, error: 'Token not found' };
   }
 
-  if (token.is_verified) {
+  // Handle SQLite boolean
+  const isVerified = config.dbType === 'sqlite' ? Boolean(token.is_verified) : token.is_verified;
+
+  if (isVerified) {
     return { success: true };
   }
 
@@ -184,7 +250,7 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
     return { success: false, error: 'Too many attempts. Please request a new code.' };
   }
 
-  await query(
+  await run(
     `UPDATE signature_tokens SET code_attempts = code_attempts + 1 WHERE id = ?`,
     [tokenId]
   );
@@ -201,8 +267,8 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
     return { success: false, error: 'Invalid verification code' };
   }
 
-  await query(
-    `UPDATE signature_tokens SET is_verified = TRUE, verified_at = NOW() WHERE id = ?`,
+  await run(
+    `UPDATE signature_tokens SET is_verified = 1, verified_at = NOW() WHERE id = ?`,
     [tokenId]
   );
 
@@ -223,7 +289,7 @@ export async function createSignature(
 ): Promise<Signature> {
   const id = uuidv4();
 
-  await query(
+  await run(
     `INSERT INTO signatures
      (id, request_id, signature_type, typed_name, signature_image, signer_ip, user_agent, verification_method_used, consent_text)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
