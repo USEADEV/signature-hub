@@ -212,9 +212,13 @@
         const data = await response.json();
 
         if (response.ok) {
-          document.getElementById('signUrl').href = data.signUrl;
-          document.getElementById('signUrl').textContent = data.signUrl;
-          document.getElementById('openSignUrl').href = data.signUrl;
+          // Replace backend BASE_URL with actual browser origin
+          const signPath = new URL(data.signUrl).pathname;
+          const correctUrl = window.location.origin + signPath;
+
+          document.getElementById('signUrl').href = correctUrl;
+          document.getElementById('signUrl').textContent = correctUrl;
+          document.getElementById('openSignUrl').href = correctUrl;
           document.getElementById('result').classList.remove('hidden');
         } else {
           alert('Error: ' + (data.error || 'Failed to create request'));

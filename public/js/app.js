@@ -194,6 +194,14 @@
     elements.tabDraw.classList.toggle('active', type === 'drawn');
     elements.signatureTypePanel.classList.toggle('hidden', type !== 'typed');
     elements.signatureDrawPanel.classList.toggle('hidden', type !== 'drawn');
+
+    // Initialize signature pad when draw tab is shown
+    if (type === 'drawn' && signaturePad) {
+      // Use setTimeout to ensure the canvas is visible before initializing
+      setTimeout(() => {
+        signaturePad.init();
+      }, 50);
+    }
   }
 
   // Validate form
