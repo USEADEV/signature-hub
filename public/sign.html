@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Document - SignatureHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SignatureHub</h1>
+    </header>
+
+    <main>
+      <!-- Loading State -->
+      <div id="loading" class="section">
+        <div class="spinner"></div>
+        <p>Loading document...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error" class="section hidden">
+        <div class="error-icon">!</div>
+        <p id="error-message">An error occurred.</p>
+      </div>
+
+      <!-- Step 1: Document Review -->
+      <div id="step-document" class="section hidden">
+        <h2>Document to Sign</h2>
+        <div class="document-info">
+          <p class="document-name" id="document-name"></p>
+          <p class="signer-name">Signing as: <strong id="signer-name"></strong></p>
+        </div>
+        <div id="document-content" class="document-content hidden"></div>
+        <div id="document-url" class="document-url hidden">
+          <a id="document-link" href="#" target="_blank" rel="noopener">View Document (PDF)</a>
+        </div>
+        <button id="btn-continue-to-verify" class="btn btn-primary">Continue to Verification</button>
+      </div>
+
+      <!-- Step 2: Verification -->
+      <div id="step-verify" class="section hidden">
+        <h2>Verify Your Identity</h2>
+        <p>To ensure the security of your signature, please verify your identity.</p>
+
+        <div id="verification-options" class="verification-options">
+          <button id="btn-verify-email" class="btn btn-secondary hidden">Send Code via Email</button>
+          <button id="btn-verify-sms" class="btn btn-secondary hidden">Send Code via SMS</button>
+        </div>
+
+        <div id="verification-code-section" class="hidden">
+          <p id="verification-sent-message" class="success-message"></p>
+          <div class="code-input-group">
+            <label for="verification-code">Enter 6-digit code:</label>
+            <input type="text" id="verification-code" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric">
+          </div>
+          <button id="btn-confirm-code" class="btn btn-primary">Verify Code</button>
+          <button id="btn-resend-code" class="btn btn-link">Resend Code</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Signature -->
+      <div id="step-sign" class="section hidden">
+        <h2>Sign Document</h2>
+
+        <div class="signature-tabs">
+          <button id="tab-type" class="tab active">Type Signature</button>
+          <button id="tab-draw" class="tab">Draw Signature</button>
+        </div>
+
+        <div id="signature-type" class="signature-panel">
+          <label for="typed-signature">Type your full legal name:</label>
+          <input type="text" id="typed-signature" class="signature-input" placeholder="Your Name">
+          <div id="typed-preview" class="signature-preview"></div>
+        </div>
+
+        <div id="signature-draw" class="signature-panel hidden">
+          <p>Draw your signature below:</p>
+          <canvas id="signature-canvas"></canvas>
+          <button id="btn-clear-canvas" class="btn btn-link">Clear</button>
+        </div>
+
+        <div class="consent-section">
+          <label class="checkbox-label">
+            <input type="checkbox" id="consent-checkbox">
+            <span id="consent-text">I agree that my signature above constitutes my legal signature on this document and that I have read and understood its contents.</span>
+          </label>
+        </div>
+
+        <button id="btn-submit" class="btn btn-primary" disabled>Sign Document</button>
+      </div>
+
+      <!-- Step 4: Success -->
+      <div id="step-success" class="section hidden">
+        <div class="success-icon">&#10003;</div>
+        <h2>Document Signed Successfully</h2>
+        <p>Thank you for signing. A confirmation has been sent to you.</p>
+        <p class="signed-at">Signed on: <strong id="signed-at"></strong></p>
+      </div>
+    </main>
+
+    <footer>
+      <p>&copy; 2024 SignatureHub. Secure document signing.</p>
+    </footer>
+  </div>
+
+  <script src="/js/signature-pad.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
