@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
+import nodemailer from 'nodemailer';
 import { apiKeyAuth } from '../middleware/auth';
 import { apiRateLimit } from '../middleware/rateLimit';
+import { config } from '../config';
 import {
   createSignatureRequest,
   getRequest,
@@ -296,6 +298,83 @@ router.delete('/templates/:templateCode', async (req: Request, res: Response) =>
   } catch (error) {
     console.error('Failed to delete template:', error);
     res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
+// ============================================
+// DEBUG ENDPOINTS (remove in production)
+// ============================================
+
+// Test SMTP connection
+router.get('/debug/smtp', async (req: Request, res: Response) => {
+  try {
+    const smtpConfig = {
+      host: config.email.host,
+      port: config.email.port,
+      secure: config.email.secure,
+      user: config.email.user,
+      from: config.email.from,
+      demoMode: config.demoMode,
+    };
+
+    res.json({
+      message: 'SMTP Configuration (password hidden)',
+      config: smtpConfig,
+      passwordSet: !!config.email.password,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get SMTP config', details: String(error) });
+  }
+});
+
+// Test sending an email
+router.post('/debug/smtp/test', async (req: Request, res: Response) => {
+  try {
+    if (config.demoMode) {
+      res.json({
+        success: false,
+        error: 'DEMO_MODE is true - emails are disabled',
+        demoMode: config.demoMode
+      });
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: config.email.host,
+      port: config.email.port,
+      secure: config.email.secure,
+      auth: {
+        user: config.email.user,
+        pass: config.email.password,
+      },
+    });
+
+    // Verify connection
+    await transporter.verify();
+
+    // Send test email
+    const info = await transporter.sendMail({
+      from: config.email.from,
+      to: req.body.to || config.email.user,
+      subject: 'SignatureHub SMTP Test from Railway',
+      text: 'If you receive this, SMTP is working on Railway!',
+      html: '<p>If you receive this, <strong>SMTP is working on Railway!</strong></p>',
+    });
+
+    res.json({
+      success: true,
+      messageId: info.messageId,
+      previewUrl: config.email.host?.includes('ethereal')
+        ? nodemailer.getTestMessageUrl(info)
+        : null,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: error.code,
+      command: error.command,
+    });
   }
 });
 
