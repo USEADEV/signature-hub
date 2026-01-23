@@ -5,10 +5,13 @@ import {
   Signature,
   SignatureRequest,
   SignatureToken,
+  WebhookPayload,
+  RequestStatusResponse,
 } from '../types';
 import {
   createRequest as dbCreateRequest,
   getRequestById,
+  getRequestByReferenceCode,
   getRequestByToken,
   getTokenByValue,
   createSignature as dbCreateSignature,
@@ -53,6 +56,7 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
 
   return {
     id: request.id,
+    referenceCode: request.reference_code,
     signUrl,
     status: request.status,
     expiresAt: request.expires_at,
@@ -61,6 +65,45 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
 
 export async function getRequest(id: string): Promise<SignatureRequest | null> {
   return getRequestById(id);
+}
+
+export async function getRequestByRef(referenceCode: string): Promise<SignatureRequest | null> {
+  return getRequestByReferenceCode(referenceCode);
+}
+
+export async function getRequestStatus(request: SignatureRequest): Promise<RequestStatusResponse> {
+  const signature = await getSignatureByRequestId(request.id);
+
+  const response: RequestStatusResponse = {
+    id: request.id,
+    referenceCode: request.reference_code,
+    externalRef: request.external_ref,
+    externalType: request.external_type,
+    documentCategory: request.document_category,
+    documentName: request.document_name,
+    jurisdiction: request.jurisdiction,
+    metadata: request.metadata ? JSON.parse(request.metadata) : undefined,
+    waiverTemplateCode: request.waiver_template_code,
+    waiverTemplateVersion: request.waiver_template_version,
+    signerName: request.signer_name,
+    signerEmail: request.signer_email,
+    status: request.status,
+    createdAt: request.created_at,
+    expiresAt: request.expires_at,
+    signedAt: request.signed_at,
+  };
+
+  if (signature) {
+    response.signature = {
+      signatureType: signature.signature_type,
+      typedName: signature.typed_name,
+      hasImage: !!signature.signature_image,
+      verificationMethodUsed: signature.verification_method_used,
+      signerIp: signature.signer_ip,
+    };
+  }
+
+  return response;
 }
 
 export async function getRequestFromToken(token: string): Promise<{
@@ -155,7 +198,7 @@ export async function submitSignature(
     console.log(`[DEMO MODE] Document signed by ${request.signer_name}`);
   }
 
-  // Send callback to ShowConnect if configured
+  // Send callback to originator if configured
   if (request.callback_url) {
     try {
       await sendCallback(request, signature);
@@ -170,11 +213,17 @@ export async function submitSignature(
 async function sendCallback(request: SignatureRequest, signature: Signature): Promise<void> {
   if (!request.callback_url) return;
 
-  const payload = {
+  const payload: WebhookPayload = {
     event: 'signature.completed',
     requestId: request.id,
+    referenceCode: request.reference_code,
     externalRef: request.external_ref,
     externalType: request.external_type,
+    documentCategory: request.document_category,
+    jurisdiction: request.jurisdiction,
+    metadata: request.metadata ? JSON.parse(request.metadata) : undefined,
+    waiverTemplateCode: request.waiver_template_code,
+    waiverTemplateVersion: request.waiver_template_version,
     signedAt: signature.signed_at,
     signatureType: signature.signature_type,
     signerName: request.signer_name,

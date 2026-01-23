@@ -56,7 +56,8 @@ router.get('/:token/data', async (req: Request, res: Response) => {
     const pageData: SigningPageData = {
       requestId: request.id,
       documentName: request.document_name,
-      documentContent: request.document_content,
+      // Use snapshot for audit trail integrity (exact content at request creation)
+      documentContent: request.document_content_snapshot || request.document_content,
       documentUrl: request.document_url,
       signerName: request.signer_name,
       isVerified: token.is_verified,

@@ -5,7 +5,10 @@ import {
   SignatureRequest,
   SignatureToken,
   Signature,
+  WaiverTemplate,
   CreateRequestInput,
+  CreateTemplateInput,
+  UpdateTemplateInput,
   RequestFilters,
   RequestStatus,
 } from '../types';
@@ -16,6 +19,15 @@ import { getSqliteDb } from './sqlite';
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function generateReferenceCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'SIG-';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 function generateVerificationCode(): string {
@@ -48,7 +60,6 @@ function sqliteRun(sql: string, params: unknown[] = []): void {
 // Generic query functions that route to the right DB
 async function query<T>(sql: string, params: unknown[] = []): Promise<T> {
   if (config.dbType === 'sqlite') {
-    // Convert MySQL placeholders (?) to SQLite format (already compatible)
     return sqliteQuery<T>(sql.replace(/NOW\(\)/g, "datetime('now')"), params) as T;
   }
   return mysqlQuery<T>(sql, params);
@@ -69,28 +80,70 @@ async function run(sql: string, params: unknown[] = []): Promise<void> {
   await mysqlQuery(sql, params);
 }
 
-// Signature Requests
+// Template resolution with merge variables
+function resolveTemplate(htmlContent: string, mergeVariables?: Record<string, string>): string {
+  if (!mergeVariables) return htmlContent;
+
+  let resolved = htmlContent;
+  for (const [key, value] of Object.entries(mergeVariables)) {
+    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+    resolved = resolved.replace(placeholder, value);
+  }
+  return resolved;
+}
+
+// ============================================
+// SIGNATURE REQUESTS
+// ============================================
 
 export async function createRequest(input: CreateRequestInput): Promise<{ request: SignatureRequest; token: SignatureToken }> {
   const requestId = uuidv4();
   const tokenId = uuidv4();
   const token = generateToken();
+  const referenceCode = generateReferenceCode();
 
   const expiresAt = input.expiresAt || new Date(Date.now() + config.request.defaultExpiryDays * 24 * 60 * 60 * 1000);
   const expiresAtStr = expiresAt.toISOString();
 
+  // Resolve document content
+  let documentContent = input.documentContent || null;
+  let documentContentSnapshot = null;
+  let waiverTemplateVersion = null;
+
+  if (input.waiverTemplateCode) {
+    const template = await getTemplateByCode(input.waiverTemplateCode);
+    if (template) {
+      documentContent = resolveTemplate(template.html_content, input.mergeVariables);
+      documentContentSnapshot = documentContent; // Store the resolved snapshot
+      waiverTemplateVersion = template.version;
+    }
+  } else if (documentContent) {
+    // If inline content provided, store snapshot
+    documentContentSnapshot = documentContent;
+  }
+
   await run(
     `INSERT INTO signature_requests
-     (id, external_ref, external_type, document_name, document_content, document_url,
-      signer_name, signer_email, signer_phone, verification_method, status, expires_at, callback_url, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+     (id, reference_code, external_ref, external_type, document_category, document_name,
+      document_content, document_content_snapshot, document_url, waiver_template_code,
+      waiver_template_version, merge_variables, jurisdiction, metadata, signer_name,
+      signer_email, signer_phone, verification_method, status, expires_at, callback_url, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
     [
       requestId,
+      referenceCode,
       input.externalRef || null,
       input.externalType || null,
+      input.documentCategory || 'other',
       input.documentName,
-      input.documentContent || null,
+      documentContent,
+      documentContentSnapshot,
       input.documentUrl || null,
+      input.waiverTemplateCode || null,
+      waiverTemplateVersion,
+      input.mergeVariables ? JSON.stringify(input.mergeVariables) : null,
+      input.jurisdiction || null,
+      input.metadata ? JSON.stringify(input.metadata) : null,
       input.signerName,
       input.signerEmail || null,
       input.signerPhone || null,
@@ -116,6 +169,13 @@ export async function getRequestById(id: string): Promise<SignatureRequest | nul
   return queryOne<SignatureRequest>(
     `SELECT * FROM signature_requests WHERE id = ?`,
     [id]
+  );
+}
+
+export async function getRequestByReferenceCode(referenceCode: string): Promise<SignatureRequest | null> {
+  return queryOne<SignatureRequest>(
+    `SELECT * FROM signature_requests WHERE reference_code = ?`,
+    [referenceCode]
   );
 }
 
@@ -150,6 +210,10 @@ export async function listRequests(filters: RequestFilters): Promise<SignatureRe
     conditions.push('status = ?');
     params.push(filters.status);
   }
+  if (filters.referenceCode) {
+    conditions.push('reference_code = ?');
+    params.push(filters.referenceCode);
+  }
   if (filters.externalRef) {
     conditions.push('external_ref = ?');
     params.push(filters.externalRef);
@@ -165,6 +229,10 @@ export async function listRequests(filters: RequestFilters): Promise<SignatureRe
   if (filters.createdBy) {
     conditions.push('created_by = ?');
     params.push(filters.createdBy);
+  }
+  if (filters.jurisdiction) {
+    conditions.push('jurisdiction = ?');
+    params.push(filters.jurisdiction);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -190,7 +258,9 @@ export async function deleteRequest(id: string): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
-// Signature Tokens
+// ============================================
+// SIGNATURE TOKENS
+// ============================================
 
 export async function getTokenByRequestId(requestId: string): Promise<SignatureToken | null> {
   const token = await queryOne<SignatureToken>(
@@ -198,7 +268,6 @@ export async function getTokenByRequestId(requestId: string): Promise<SignatureT
     [requestId]
   );
   if (token && config.dbType === 'sqlite') {
-    // Convert SQLite integer to boolean
     token.is_verified = Boolean(token.is_verified);
   }
   return token;
@@ -239,7 +308,6 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
     return { success: false, error: 'Token not found' };
   }
 
-  // Handle SQLite boolean
   const isVerified = config.dbType === 'sqlite' ? Boolean(token.is_verified) : token.is_verified;
 
   if (isVerified) {
@@ -275,7 +343,9 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
   return { success: true };
 }
 
-// Signatures
+// ============================================
+// SIGNATURES
+// ============================================
 
 export async function createSignature(
   requestId: string,
@@ -306,4 +376,123 @@ export async function getSignatureByRequestId(requestId: string): Promise<Signat
     `SELECT * FROM signatures WHERE request_id = ?`,
     [requestId]
   );
+}
+
+// ============================================
+// WAIVER TEMPLATES
+// ============================================
+
+export async function createTemplate(input: CreateTemplateInput): Promise<WaiverTemplate> {
+  const id = uuidv4();
+
+  await run(
+    `INSERT INTO waiver_templates
+     (id, template_code, name, description, html_content, jurisdiction, version, is_active, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)`,
+    [
+      id,
+      input.templateCode,
+      input.name,
+      input.description || null,
+      input.htmlContent,
+      input.jurisdiction || null,
+      input.createdBy || null,
+    ]
+  );
+
+  return (await getTemplateByCode(input.templateCode))!;
+}
+
+export async function getTemplateByCode(templateCode: string): Promise<WaiverTemplate | null> {
+  const template = await queryOne<WaiverTemplate>(
+    `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1`,
+    [templateCode]
+  );
+  if (template && config.dbType === 'sqlite') {
+    template.is_active = Boolean(template.is_active);
+  }
+  return template;
+}
+
+export async function getTemplateById(id: string): Promise<WaiverTemplate | null> {
+  const template = await queryOne<WaiverTemplate>(
+    `SELECT * FROM waiver_templates WHERE id = ?`,
+    [id]
+  );
+  if (template && config.dbType === 'sqlite') {
+    template.is_active = Boolean(template.is_active);
+  }
+  return template;
+}
+
+export async function updateTemplate(templateCode: string, input: UpdateTemplateInput): Promise<WaiverTemplate | null> {
+  const existing = await getTemplateByCode(templateCode);
+  if (!existing) return null;
+
+  const updates: string[] = [];
+  const params: unknown[] = [];
+
+  if (input.name !== undefined) {
+    updates.push('name = ?');
+    params.push(input.name);
+  }
+  if (input.description !== undefined) {
+    updates.push('description = ?');
+    params.push(input.description);
+  }
+  if (input.htmlContent !== undefined) {
+    updates.push('html_content = ?');
+    updates.push('version = version + 1');
+    params.push(input.htmlContent);
+  }
+  if (input.jurisdiction !== undefined) {
+    updates.push('jurisdiction = ?');
+    params.push(input.jurisdiction);
+  }
+  if (input.isActive !== undefined) {
+    updates.push('is_active = ?');
+    params.push(input.isActive ? 1 : 0);
+  }
+
+  updates.push("updated_at = datetime('now')");
+
+  if (updates.length === 1) {
+    return existing; // Only updated_at, no real changes
+  }
+
+  params.push(templateCode);
+
+  await run(
+    `UPDATE waiver_templates SET ${updates.join(', ')} WHERE template_code = ?`,
+    params
+  );
+
+  return getTemplateByCode(templateCode);
+}
+
+export async function listTemplates(jurisdiction?: string): Promise<WaiverTemplate[]> {
+  let sql = 'SELECT * FROM waiver_templates WHERE is_active = 1';
+  const params: unknown[] = [];
+
+  if (jurisdiction) {
+    sql += ' AND (jurisdiction = ? OR jurisdiction IS NULL)';
+    params.push(jurisdiction);
+  }
+
+  sql += ' ORDER BY name ASC';
+
+  const templates = await query<WaiverTemplate[]>(sql, params);
+  if (config.dbType === 'sqlite') {
+    return templates.map(t => ({ ...t, is_active: Boolean(t.is_active) }));
+  }
+  return templates;
+}
+
+export async function deleteTemplate(templateCode: string): Promise<boolean> {
+  // Soft delete by marking inactive
+  await run(
+    `UPDATE waiver_templates SET is_active = 0, updated_at = datetime('now') WHERE template_code = ?`,
+    [templateCode]
+  );
+  return true;
 }
