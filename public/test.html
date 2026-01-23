@@ -239,10 +239,10 @@
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="showPanel('requests')">Signature Requests</div>
-      <div class="tab" onclick="showPanel('templates')">Templates</div>
-      <div class="tab" onclick="showPanel('signing')">Signing Flow</div>
-      <div class="tab" onclick="showPanel('fulltest')">Full Test</div>
+      <div class="tab active" onclick="showPanel('requests', this)">Signature Requests</div>
+      <div class="tab" onclick="showPanel('templates', this)">Templates</div>
+      <div class="tab" onclick="showPanel('signing', this)">Signing Flow</div>
+      <div class="tab" onclick="showPanel('fulltest', this)">Full Test</div>
     </div>
 
     <!-- SIGNATURE REQUESTS PANEL -->
@@ -684,11 +684,11 @@
       input.type = input.type === 'password' ? 'text' : 'password';
     }
 
-    function showPanel(name) {
+    function showPanel(name, el) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
-      event.target.classList.add('active');
+      el.classList.add('active');
     }
 
     function showResponse(id, status, data) {
@@ -715,9 +715,20 @@
         options.body = JSON.stringify(body);
       }
 
-      const response = await fetch(path, options);
-      const data = await response.json();
-      return { status: response.status, data };
+      try {
+        const response = await fetch(path, options);
+        let data;
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = { message: text };
+        }
+        return { status: response.status, data };
+      } catch (err) {
+        console.error('API call failed:', err);
+        return { status: 0, data: { error: err.message } };
+      }
     }
 
     async function testConnection() {
