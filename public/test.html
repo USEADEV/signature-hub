@@ -184,11 +184,7 @@
       margin-bottom: 20px;
     }
     .quick-actions h4 { margin: 0 0 10px 0; color: #e94560; }
-    .quick-actions .btn-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+
     .btn-quick {
       padding: 8px 16px;
       background: #0f3460;
@@ -224,8 +220,8 @@
     <div class="api-key-bar">
       <label for="globalApiKey">API Key:</label>
       <input type="password" id="globalApiKey" placeholder="Enter your API key">
-      <button class="btn-quick" onclick="toggleApiKeyVisibility()">Show</button>
-      <button class="btn-quick" onclick="testConnection()">Test Connection</button>
+      <button class="btn-quick" id="btn-toggle-key">Show</button>
+      <button class="btn-quick" id="btn-test-connection">Test Connection</button>
       <span id="connectionStatus" class="status disconnected">Not tested</span>
     </div>
 
@@ -239,10 +235,10 @@
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="showPanel('requests', this)">Signature Requests</div>
-      <div class="tab" onclick="showPanel('templates', this)">Templates</div>
-      <div class="tab" onclick="showPanel('signing', this)">Signing Flow</div>
-      <div class="tab" onclick="showPanel('fulltest', this)">Full Test</div>
+      <div class="tab active" data-panel="requests">Signature Requests</div>
+      <div class="tab" data-panel="templates">Templates</div>
+      <div class="tab" data-panel="signing">Signing Flow</div>
+      <div class="tab" data-panel="fulltest">Full Test</div>
     </div>
 
     <!-- SIGNATURE REQUESTS PANEL -->
@@ -280,7 +276,7 @@
           </div>
           <div class="form-row">
             <label>Document Content (HTML)</label>
-            <textarea id="cr-documentContent"><h3>Test Agreement</h3><p>This is a test document for API testing.</p></textarea>
+            <textarea id="cr-documentContent">&lt;h3&gt;Test Agreement&lt;/h3&gt;&lt;p&gt;This is a test document for API testing.&lt;/p&gt;</textarea>
           </div>
           <div class="form-row">
             <label>Callback URL (optional)</label>
@@ -291,7 +287,7 @@
             <input type="text" id="cr-externalRef" placeholder="your-system-id-123">
           </div>
 
-          <button class="btn-send" onclick="createRequest()">Create Request</button>
+          <button class="btn-send" id="btn-createRequest">Create Request</button>
           <div id="response-createRequest" class="response-area" style="display:none;"></div>
         </div>
 
@@ -321,7 +317,7 @@
             <input type="number" id="lr-limit" value="10">
           </div>
 
-          <button class="btn-send" onclick="listRequests()">List Requests</button>
+          <button class="btn-send" id="btn-listRequests">List Requests</button>
           <div id="response-listRequests" class="response-area" style="display:none;"></div>
         </div>
 
@@ -333,10 +329,10 @@
           <div class="form-row">
             <label>Request ID *</label>
             <input type="text" id="gr-id" placeholder="Enter request ID">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('gr-id').value = savedContext.requestId">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="gr-id" data-field="requestId" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="getRequest()">Get Request</button>
+          <button class="btn-send" id="btn-getRequest">Get Request</button>
           <div id="response-getRequest" class="response-area" style="display:none;"></div>
         </div>
 
@@ -348,10 +344,10 @@
           <div class="form-row">
             <label>Reference Code *</label>
             <input type="text" id="grr-ref" placeholder="Enter reference code">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('grr-ref').value = savedContext.reference">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="grr-ref" data-field="reference" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="getRequestByRef()">Get Request</button>
+          <button class="btn-send" id="btn-getRequestByRef">Get Request</button>
           <div id="response-getRequestByRef" class="response-area" style="display:none;"></div>
         </div>
 
@@ -363,10 +359,10 @@
           <div class="form-row">
             <label>Request ID *</label>
             <input type="text" id="gs-id" placeholder="Enter request ID">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('gs-id').value = savedContext.requestId">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="gs-id" data-field="requestId" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="getSignature()">Get Signature</button>
+          <button class="btn-send" id="btn-getSignature">Get Signature</button>
           <div id="response-getSignature" class="response-area" style="display:none;"></div>
         </div>
 
@@ -378,10 +374,10 @@
           <div class="form-row">
             <label>Request ID *</label>
             <input type="text" id="dr-id" placeholder="Enter request ID">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('dr-id').value = savedContext.requestId">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="dr-id" data-field="requestId" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="cancelRequest()">Cancel Request</button>
+          <button class="btn-send" id="btn-cancelRequest">Cancel Request</button>
           <div id="response-cancelRequest" class="response-area" style="display:none;"></div>
         </div>
 
@@ -411,14 +407,14 @@
           </div>
           <div class="form-row">
             <label>HTML Content *</label>
-            <textarea id="ct-htmlContent"><h2>Liability Waiver</h2><p>I, {{signerName}}, acknowledge and accept all risks.</p></textarea>
+            <textarea id="ct-htmlContent">&lt;h2&gt;Liability Waiver&lt;/h2&gt;&lt;p&gt;I, {{signerName}}, acknowledge and accept all risks.&lt;/p&gt;</textarea>
           </div>
           <div class="form-row">
             <label>Jurisdiction</label>
             <input type="text" id="ct-jurisdiction" placeholder="e.g., US-VA">
           </div>
 
-          <button class="btn-send" onclick="createTemplate()">Create Template</button>
+          <button class="btn-send" id="btn-createTemplate">Create Template</button>
           <div id="response-createTemplate" class="response-area" style="display:none;"></div>
         </div>
 
@@ -432,7 +428,7 @@
             <input type="text" id="lt-jurisdiction" placeholder="Optional filter">
           </div>
 
-          <button class="btn-send" onclick="listTemplates()">List Templates</button>
+          <button class="btn-send" id="btn-listTemplates">List Templates</button>
           <div id="response-listTemplates" class="response-area" style="display:none;"></div>
         </div>
 
@@ -446,7 +442,7 @@
             <input type="text" id="gt-templateCode" placeholder="Enter template code">
           </div>
 
-          <button class="btn-send" onclick="getTemplate()">Get Template</button>
+          <button class="btn-send" id="btn-getTemplate">Get Template</button>
           <div id="response-getTemplate" class="response-area" style="display:none;"></div>
         </div>
 
@@ -476,7 +472,7 @@
             </select>
           </div>
 
-          <button class="btn-send" onclick="updateTemplate()">Update Template</button>
+          <button class="btn-send" id="btn-updateTemplate">Update Template</button>
           <div id="response-updateTemplate" class="response-area" style="display:none;"></div>
         </div>
 
@@ -490,7 +486,7 @@
             <input type="text" id="dt-templateCode" placeholder="Enter template code">
           </div>
 
-          <button class="btn-send" onclick="deleteTemplate()">Delete Template</button>
+          <button class="btn-send" id="btn-deleteTemplate">Delete Template</button>
           <div id="response-deleteTemplate" class="response-area" style="display:none;"></div>
         </div>
 
@@ -510,10 +506,10 @@
           <div class="form-row">
             <label>Token *</label>
             <input type="text" id="spd-token" placeholder="Enter signing token">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('spd-token').value = savedContext.token">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="spd-token" data-field="token" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="getSigningData()">Get Data</button>
+          <button class="btn-send" id="btn-getSigningData">Get Data</button>
           <div id="response-getSigningData" class="response-area" style="display:none;"></div>
         </div>
 
@@ -526,7 +522,7 @@
           <div class="form-row">
             <label>Token *</label>
             <input type="text" id="sv-token" placeholder="Enter signing token">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('sv-token').value = savedContext.token">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="sv-token" data-field="token" style="margin-top:5px;">Use Saved</button>
           </div>
           <div class="form-row">
             <label>Method *</label>
@@ -536,7 +532,7 @@
             </select>
           </div>
 
-          <button class="btn-send" onclick="sendVerification()">Send Code</button>
+          <button class="btn-send" id="btn-sendVerification">Send Code</button>
           <div id="response-sendVerification" class="response-area" style="display:none;"></div>
         </div>
 
@@ -548,14 +544,14 @@
           <div class="form-row">
             <label>Token *</label>
             <input type="text" id="cv-token" placeholder="Enter signing token">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('cv-token').value = savedContext.token">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="cv-token" data-field="token" style="margin-top:5px;">Use Saved</button>
           </div>
           <div class="form-row">
             <label>Verification Code *</label>
             <input type="text" id="cv-code" placeholder="6-digit code" maxlength="6">
           </div>
 
-          <button class="btn-send" onclick="confirmVerification()">Confirm Code</button>
+          <button class="btn-send" id="btn-confirmVerification">Confirm Code</button>
           <div id="response-confirmVerification" class="response-area" style="display:none;"></div>
         </div>
 
@@ -567,7 +563,7 @@
           <div class="form-row">
             <label>Token *</label>
             <input type="text" id="ss-token" placeholder="Enter signing token">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('ss-token').value = savedContext.token">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="ss-token" data-field="token" style="margin-top:5px;">Use Saved</button>
           </div>
           <div class="form-row">
             <label>Signature Type *</label>
@@ -585,7 +581,7 @@
             <input type="text" id="ss-consentText" value="I agree to sign this document electronically">
           </div>
 
-          <button class="btn-send" onclick="submitSignature()">Submit Signature</button>
+          <button class="btn-send" id="btn-submitSignature">Submit Signature</button>
           <div id="response-submitSignature" class="response-area" style="display:none;"></div>
         </div>
 
@@ -598,10 +594,10 @@
           <div class="form-row">
             <label>Token *</label>
             <input type="text" id="op-token" placeholder="Enter signing token">
-            <button class="btn-quick" style="margin-top:5px;" onclick="document.getElementById('op-token').value = savedContext.token">Use Saved</button>
+            <button class="btn-quick use-saved" data-target="op-token" data-field="token" style="margin-top:5px;">Use Saved</button>
           </div>
 
-          <button class="btn-send" onclick="openSigningPage()">Open Signing Page</button>
+          <button class="btn-send" id="btn-openSigningPage">Open Signing Page</button>
         </div>
 
       </div>
@@ -633,7 +629,7 @@
           </select>
         </div>
 
-        <button class="btn-send" onclick="runFullTest()" id="ft-btn">Start Full Test</button>
+        <button class="btn-send" id="ft-btn">Start Full Test</button>
 
         <div id="ft-log" class="response-area" style="display:none;">
           <div class="response-header">
@@ -647,378 +643,13 @@
             <label>Enter the verification code you received:</label>
             <input type="text" id="ft-code" placeholder="6-digit code" maxlength="6">
           </div>
-          <button class="btn-send" onclick="continueFullTest()">Continue Test</button>
+          <button class="btn-send" id="ft-continue-btn">Continue Test</button>
         </div>
       </div>
     </div>
 
   </div>
 
-  <script>
-    // Saved context for reuse
-    const savedContext = {
-      requestId: localStorage.getItem('test_requestId') || '',
-      token: localStorage.getItem('test_token') || '',
-      reference: localStorage.getItem('test_reference') || ''
-    };
-
-    function updateSavedContext() {
-      document.getElementById('savedRequestId').textContent = savedContext.requestId || '-';
-      document.getElementById('savedToken').textContent = savedContext.token || '-';
-      document.getElementById('savedReference').textContent = savedContext.reference || '-';
-    }
-    updateSavedContext();
-
-    function saveContext(key, value) {
-      savedContext[key] = value;
-      localStorage.setItem('test_' + key, value);
-      updateSavedContext();
-    }
-
-    function getApiKey() {
-      return document.getElementById('globalApiKey').value;
-    }
-
-    function toggleApiKeyVisibility() {
-      const input = document.getElementById('globalApiKey');
-      input.type = input.type === 'password' ? 'text' : 'password';
-    }
-
-    function showPanel(name, el) {
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.getElementById('panel-' + name).classList.add('active');
-      el.classList.add('active');
-    }
-
-    function showResponse(id, status, data) {
-      const el = document.getElementById('response-' + id);
-      el.style.display = 'block';
-      el.innerHTML = `
-        <div class="response-header">
-          <span class="response-status ${status >= 200 && status < 300 ? 'success' : 'error'}">
-            Status: ${status}
-          </span>
-        </div>
-        <div class="response-body">${JSON.stringify(data, null, 2)}</div>
-      `;
-    }
-
-    async function apiCall(method, path, body = null, useApiKey = true) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (useApiKey) {
-        headers['X-API-Key'] = getApiKey();
-      }
-
-      const options = { method, headers };
-      if (body) {
-        options.body = JSON.stringify(body);
-      }
-
-      try {
-        const response = await fetch(path, options);
-        let data;
-        const text = await response.text();
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          data = { message: text };
-        }
-        return { status: response.status, data };
-      } catch (err) {
-        console.error('API call failed:', err);
-        return { status: 0, data: { error: err.message } };
-      }
-    }
-
-    async function testConnection() {
-      const statusEl = document.getElementById('connectionStatus');
-      try {
-        const { status } = await apiCall('GET', '/api/requests?limit=1');
-        if (status === 200) {
-          statusEl.textContent = 'Connected';
-          statusEl.className = 'status connected';
-        } else if (status === 401 || status === 403) {
-          statusEl.textContent = 'Invalid API Key';
-          statusEl.className = 'status disconnected';
-        } else {
-          statusEl.textContent = 'Error: ' + status;
-          statusEl.className = 'status disconnected';
-        }
-      } catch (e) {
-        statusEl.textContent = 'Connection Failed';
-        statusEl.className = 'status disconnected';
-      }
-    }
-
-    // === SIGNATURE REQUESTS ===
-
-    async function createRequest() {
-      const body = {
-        documentName: document.getElementById('cr-documentName').value,
-        signerName: document.getElementById('cr-signerName').value,
-        signerEmail: document.getElementById('cr-signerEmail').value || undefined,
-        signerPhone: document.getElementById('cr-signerPhone').value || undefined,
-        verificationMethod: document.getElementById('cr-verificationMethod').value,
-        documentContent: document.getElementById('cr-documentContent').value || undefined,
-        callbackUrl: document.getElementById('cr-callbackUrl').value || undefined,
-        externalRef: document.getElementById('cr-externalRef').value || undefined,
-      };
-
-      const { status, data } = await apiCall('POST', '/api/requests', body);
-      showResponse('createRequest', status, data);
-
-      if (status === 201 && data.requestId) {
-        saveContext('requestId', data.requestId);
-        if (data.signUrl) {
-          const token = data.signUrl.split('/sign/')[1];
-          if (token) saveContext('token', token);
-        }
-        if (data.referenceCode) {
-          saveContext('reference', data.referenceCode);
-        }
-      }
-    }
-
-    async function listRequests() {
-      const params = new URLSearchParams();
-      const status = document.getElementById('lr-status').value;
-      const email = document.getElementById('lr-signerEmail').value;
-      const limit = document.getElementById('lr-limit').value;
-
-      if (status) params.append('status', status);
-      if (email) params.append('signerEmail', email);
-      if (limit) params.append('limit', limit);
-
-      const { status: respStatus, data } = await apiCall('GET', '/api/requests?' + params.toString());
-      showResponse('listRequests', respStatus, data);
-    }
-
-    async function getRequest() {
-      const id = document.getElementById('gr-id').value;
-      const { status, data } = await apiCall('GET', '/api/requests/' + id);
-      showResponse('getRequest', status, data);
-    }
-
-    async function getRequestByRef() {
-      const ref = document.getElementById('grr-ref').value;
-      const { status, data } = await apiCall('GET', '/api/requests/ref/' + ref);
-      showResponse('getRequestByRef', status, data);
-    }
-
-    async function getSignature() {
-      const id = document.getElementById('gs-id').value;
-      const { status, data } = await apiCall('GET', '/api/requests/' + id + '/signature');
-      showResponse('getSignature', status, data);
-    }
-
-    async function cancelRequest() {
-      const id = document.getElementById('dr-id').value;
-      const { status, data } = await apiCall('DELETE', '/api/requests/' + id);
-      showResponse('cancelRequest', status, data);
-    }
-
-    // === TEMPLATES ===
-
-    async function createTemplate() {
-      const body = {
-        templateCode: document.getElementById('ct-templateCode').value,
-        name: document.getElementById('ct-name').value,
-        description: document.getElementById('ct-description').value || undefined,
-        htmlContent: document.getElementById('ct-htmlContent').value,
-        jurisdiction: document.getElementById('ct-jurisdiction').value || undefined,
-      };
-
-      const { status, data } = await apiCall('POST', '/api/templates', body);
-      showResponse('createTemplate', status, data);
-    }
-
-    async function listTemplates() {
-      const jurisdiction = document.getElementById('lt-jurisdiction').value;
-      const params = jurisdiction ? '?jurisdiction=' + jurisdiction : '';
-      const { status, data } = await apiCall('GET', '/api/templates' + params);
-      showResponse('listTemplates', status, data);
-    }
-
-    async function getTemplate() {
-      const code = document.getElementById('gt-templateCode').value;
-      const { status, data } = await apiCall('GET', '/api/templates/' + code);
-      showResponse('getTemplate', status, data);
-    }
-
-    async function updateTemplate() {
-      const code = document.getElementById('ut-templateCode').value;
-      const body = {};
-
-      const name = document.getElementById('ut-name').value;
-      const html = document.getElementById('ut-htmlContent').value;
-      const isActive = document.getElementById('ut-isActive').value;
-
-      if (name) body.name = name;
-      if (html) body.htmlContent = html;
-      if (isActive) body.isActive = isActive === 'true';
-
-      const { status, data } = await apiCall('PUT', '/api/templates/' + code, body);
-      showResponse('updateTemplate', status, data);
-    }
-
-    async function deleteTemplate() {
-      const code = document.getElementById('dt-templateCode').value;
-      const { status, data } = await apiCall('DELETE', '/api/templates/' + code);
-      showResponse('deleteTemplate', status, data);
-    }
-
-    // === SIGNING FLOW ===
-
-    async function getSigningData() {
-      const token = document.getElementById('spd-token').value;
-      const { status, data } = await apiCall('GET', '/sign/' + token + '/data', null, false);
-      showResponse('getSigningData', status, data);
-    }
-
-    async function sendVerification() {
-      const token = document.getElementById('sv-token').value;
-      const method = document.getElementById('sv-method').value;
-      const { status, data } = await apiCall('POST', '/sign/' + token + '/verify', { method }, false);
-      showResponse('sendVerification', status, data);
-    }
-
-    async function confirmVerification() {
-      const token = document.getElementById('cv-token').value;
-      const code = document.getElementById('cv-code').value;
-      const { status, data } = await apiCall('POST', '/sign/' + token + '/confirm', { code }, false);
-      showResponse('confirmVerification', status, data);
-    }
-
-    async function submitSignature() {
-      const token = document.getElementById('ss-token').value;
-      const body = {
-        signatureType: document.getElementById('ss-signatureType').value,
-        typedName: document.getElementById('ss-typedName').value || undefined,
-        consentText: document.getElementById('ss-consentText').value,
-      };
-      const { status, data } = await apiCall('POST', '/sign/' + token + '/submit', body, false);
-      showResponse('submitSignature', status, data);
-    }
-
-    function openSigningPage() {
-      const token = document.getElementById('op-token').value;
-      window.open('/sign/' + token, '_blank');
-    }
-
-    // === FULL TEST ===
-
-    let fullTestToken = '';
-
-    function ftLog(msg) {
-      const el = document.getElementById('ft-log-body');
-      el.textContent += new Date().toLocaleTimeString() + ' - ' + msg + '\n';
-      el.scrollTop = el.scrollHeight;
-    }
-
-    async function runFullTest() {
-      const email = document.getElementById('ft-email').value;
-      const phone = document.getElementById('ft-phone').value;
-      const name = document.getElementById('ft-name').value;
-      const method = document.getElementById('ft-method').value;
-
-      if (!email && method === 'email') {
-        alert('Email is required for email verification');
-        return;
-      }
-      if (!phone && method === 'sms') {
-        alert('Phone is required for SMS verification');
-        return;
-      }
-
-      document.getElementById('ft-log').style.display = 'block';
-      document.getElementById('ft-log-body').textContent = '';
-      document.getElementById('ft-btn').disabled = true;
-
-      ftLog('Starting full test...');
-
-      // Step 1: Create request
-      ftLog('Step 1: Creating signature request...');
-      const createBody = {
-        documentName: 'Full Test Document',
-        signerName: name,
-        signerEmail: email || undefined,
-        signerPhone: phone || undefined,
-        verificationMethod: method,
-        documentContent: '<h2>Test Document</h2><p>This is a full end-to-end test.</p>',
-      };
-
-      const { status: createStatus, data: createData } = await apiCall('POST', '/api/requests', createBody);
-
-      if (createStatus !== 201) {
-        ftLog('ERROR: Failed to create request - ' + JSON.stringify(createData));
-        document.getElementById('ft-btn').disabled = false;
-        return;
-      }
-
-      ftLog('Request created! ID: ' + createData.requestId);
-      fullTestToken = createData.signUrl.split('/sign/')[1];
-      ftLog('Token: ' + fullTestToken);
-      saveContext('requestId', createData.requestId);
-      saveContext('token', fullTestToken);
-
-      // Step 2: Send verification
-      ftLog('Step 2: Sending verification code via ' + method + '...');
-      const { status: verifyStatus, data: verifyData } = await apiCall('POST', '/sign/' + fullTestToken + '/verify', { method }, false);
-
-      if (verifyStatus !== 200) {
-        ftLog('ERROR: Failed to send verification - ' + JSON.stringify(verifyData));
-        document.getElementById('ft-btn').disabled = false;
-        return;
-      }
-
-      ftLog('Verification code sent! ' + verifyData.message);
-      ftLog('Waiting for you to enter the code...');
-
-      document.getElementById('ft-verify').style.display = 'block';
-    }
-
-    async function continueFullTest() {
-      const code = document.getElementById('ft-code').value;
-
-      if (!code || code.length !== 6) {
-        alert('Please enter a 6-digit code');
-        return;
-      }
-
-      // Step 3: Confirm code
-      ftLog('Step 3: Confirming verification code...');
-      const { status: confirmStatus, data: confirmData } = await apiCall('POST', '/sign/' + fullTestToken + '/confirm', { code }, false);
-
-      if (confirmStatus !== 200) {
-        ftLog('ERROR: Failed to confirm code - ' + JSON.stringify(confirmData));
-        return;
-      }
-
-      ftLog('Code confirmed! Identity verified.');
-
-      // Step 4: Submit signature
-      ftLog('Step 4: Submitting signature...');
-      const signBody = {
-        signatureType: 'typed',
-        typedName: document.getElementById('ft-name').value,
-        consentText: 'I agree to sign this document electronically',
-      };
-
-      const { status: signStatus, data: signData } = await apiCall('POST', '/sign/' + fullTestToken + '/submit', signBody, false);
-
-      if (signStatus !== 200) {
-        ftLog('ERROR: Failed to submit signature - ' + JSON.stringify(signData));
-        return;
-      }
-
-      ftLog('SUCCESS! Document signed at ' + signData.signedAt);
-      ftLog('');
-      ftLog('=== FULL TEST COMPLETE ===');
-
-      document.getElementById('ft-verify').style.display = 'none';
-      document.getElementById('ft-btn').disabled = false;
-    }
-  </script>
+  <script src="/js/test-console.js"></script>
 </body>
 </html>
