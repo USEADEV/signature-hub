@@ -53,9 +53,18 @@
     }
 
     try {
+      console.log('API call:', method, path);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+      options.signal = controller.signal;
+
       const response = await fetch(path, options);
+      clearTimeout(timeoutId);
+
+      console.log('Response status:', response.status);
       let data;
       const text = await response.text();
+      console.log('Response text:', text.substring(0, 500));
       try {
         data = JSON.parse(text);
       } catch (e) {
@@ -64,7 +73,7 @@
       return { status: response.status, data: data };
     } catch (err) {
       console.error('API call failed:', err);
-      return { status: 0, data: { error: err.message } };
+      return { status: 0, data: { error: err.message || 'Request failed or timed out' } };
     }
   }
 
