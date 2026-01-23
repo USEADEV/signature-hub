@@ -148,29 +148,49 @@
   // === SIGNATURE REQUESTS ===
 
   async function createRequest() {
-    const body = {
-      documentName: document.getElementById('cr-documentName').value,
-      signerName: document.getElementById('cr-signerName').value,
-      signerEmail: document.getElementById('cr-signerEmail').value || undefined,
-      signerPhone: document.getElementById('cr-signerPhone').value || undefined,
-      verificationMethod: document.getElementById('cr-verificationMethod').value,
-      documentContent: document.getElementById('cr-documentContent').value || undefined,
-      callbackUrl: document.getElementById('cr-callbackUrl').value || undefined,
-      externalRef: document.getElementById('cr-externalRef').value || undefined
-    };
+    const btn = document.getElementById('btn-createRequest');
 
-    const result = await apiCall('POST', '/api/requests', body);
-    showResponse('createRequest', result.status, result.data);
+    if (!getApiKey()) {
+      alert('Please enter your API key first');
+      return;
+    }
 
-    if (result.status === 201 && result.data.requestId) {
-      saveContext('requestId', result.data.requestId);
-      if (result.data.signUrl) {
-        const token = result.data.signUrl.split('/sign/')[1];
-        if (token) saveContext('token', token);
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    try {
+      const body = {
+        documentName: document.getElementById('cr-documentName').value,
+        signerName: document.getElementById('cr-signerName').value,
+        signerEmail: document.getElementById('cr-signerEmail').value || undefined,
+        signerPhone: document.getElementById('cr-signerPhone').value || undefined,
+        verificationMethod: document.getElementById('cr-verificationMethod').value,
+        documentContent: document.getElementById('cr-documentContent').value || undefined,
+        callbackUrl: document.getElementById('cr-callbackUrl').value || undefined,
+        externalRef: document.getElementById('cr-externalRef').value || undefined
+      };
+
+      console.log('Creating request with:', body);
+      const result = await apiCall('POST', '/api/requests', body);
+      console.log('Result:', result);
+      showResponse('createRequest', result.status, result.data);
+
+      if (result.status === 201 && result.data.requestId) {
+        saveContext('requestId', result.data.requestId);
+        if (result.data.signUrl) {
+          const token = result.data.signUrl.split('/sign/')[1];
+          if (token) saveContext('token', token);
+        }
+        if (result.data.referenceCode) {
+          saveContext('reference', result.data.referenceCode);
+        }
       }
-      if (result.data.referenceCode) {
-        saveContext('reference', result.data.referenceCode);
-      }
+    } catch (err) {
+      console.error('Create request error:', err);
+      showResponse('createRequest', 0, { error: err.message });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create Request';
     }
   }
 
