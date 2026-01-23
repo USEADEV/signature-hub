@@ -137,6 +137,25 @@
         </div>
 
         <div class="form-group">
+          <label for="signerPhone">Signer Phone (for SMS verification)</label>
+          <input type="tel" id="signerPhone" placeholder="e.g., +15551234567">
+        </div>
+
+        <div class="form-group">
+          <label for="verificationMethod">Verification Method</label>
+          <select id="verificationMethod" style="width: 100%; padding: 12px; border: 2px solid #e1e4e8; border-radius: 6px; font-size: 1rem;">
+            <option value="email">Email only</option>
+            <option value="sms">SMS only</option>
+            <option value="both">Both (Email and SMS)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="apiKey">API Key</label>
+          <input type="password" id="apiKey" placeholder="Enter your API key">
+        </div>
+
+        <div class="form-group">
           <label for="documentContent">Document Content (HTML)</label>
           <textarea id="documentContent" placeholder="Optional: HTML content to display"><h3>Entry Agreement</h3><p>By signing this document, I agree to the following terms and conditions for participating in the horse show event:</p><ul><li>I understand and accept all risks associated with equestrian activities</li><li>I agree to follow all safety rules and guidelines</li><li>I confirm that all information provided is accurate</li></ul><p>This agreement is binding upon signature.</p></textarea>
         </div>
@@ -153,8 +172,9 @@
         </div>
 
         <div class="hint-box">
-          <h4>Demo Mode Info</h4>
-          <p>In demo mode, no emails or SMS are sent. When verifying your identity, use the code: <code>123456</code></p>
+          <h4>Testing Info</h4>
+          <p>Enter your API key to test live email/SMS sending. A verification code will be sent to the email or phone number provided.</p>
+          <p style="margin-top: 10px;"><strong>Note:</strong> Phone numbers must be in E.164 format (e.g., <code>+15551234567</code>)</p>
         </div>
       </div>
 
@@ -194,18 +214,37 @@
       btn.textContent = 'Creating...';
 
       try {
+        const apiKey = document.getElementById('apiKey').value;
+        if (!apiKey) {
+          alert('Please enter your API key');
+          btn.disabled = false;
+          btn.textContent = 'Create Signature Request';
+          return;
+        }
+
+        const verificationMethod = document.getElementById('verificationMethod').value;
+        const signerPhone = document.getElementById('signerPhone').value;
+
+        if ((verificationMethod === 'sms' || verificationMethod === 'both') && !signerPhone) {
+          alert('Phone number is required for SMS verification');
+          btn.disabled = false;
+          btn.textContent = 'Create Signature Request';
+          return;
+        }
+
         const response = await fetch('/api/requests', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': 'demo-api-key'
+            'X-API-Key': apiKey
           },
           body: JSON.stringify({
             documentName: document.getElementById('documentName').value,
             signerName: document.getElementById('signerName').value,
             signerEmail: document.getElementById('signerEmail').value,
+            signerPhone: signerPhone || undefined,
             documentContent: document.getElementById('documentContent').value,
-            verificationMethod: 'email'
+            verificationMethod: verificationMethod
           })
         });
 
