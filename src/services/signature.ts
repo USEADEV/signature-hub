@@ -28,9 +28,17 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
   const signUrl = `${config.baseUrl}/sign/${token.token}`;
 
   // Send notification to signer (skip in demo mode)
+  let emailSent = false;
+  let emailError: string | null = null;
+
   if (!config.demoMode) {
     try {
+      console.log('[EMAIL DEBUG] Attempting to send notification...');
+      console.log('[EMAIL DEBUG] signerEmail:', input.signerEmail);
+      console.log('[EMAIL DEBUG] verificationMethod:', input.verificationMethod);
+
       if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
+        console.log('[EMAIL DEBUG] Sending email to:', input.signerEmail);
         await sendSignatureRequestEmail(
           input.signerEmail,
           input.signerName,
@@ -38,6 +46,8 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
           signUrl
         );
         await updateRequestStatus(request.id, 'sent');
+        emailSent = true;
+        console.log('[EMAIL DEBUG] Email sent successfully');
       } else if (input.signerPhone && input.verificationMethod === 'sms') {
         await sendSignatureRequestSms(
           input.signerPhone,
@@ -46,9 +56,13 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
           signUrl
         );
         await updateRequestStatus(request.id, 'sent');
+        emailSent = true;
+      } else {
+        console.log('[EMAIL DEBUG] No matching condition for sending notification');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send notification:', error);
+      emailError = error.message || String(error);
     }
   } else {
     console.log(`[DEMO MODE] Signature request created. Sign URL: ${signUrl}`);
@@ -58,8 +72,12 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
     id: request.id,
     referenceCode: request.reference_code,
     signUrl,
-    status: request.status,
+    status: emailSent ? 'sent' : request.status,
     expiresAt: request.expires_at,
+    _debug: {
+      emailSent,
+      emailError,
+    },
   };
 }
 

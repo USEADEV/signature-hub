@@ -1,0 +1,55 @@
+You are working on SignatureHub, currently a Node.js + TypeScript + Express service that supports API-created signature requests, signer verification by PIN (email/SMS), and signature capture with audit trail and optional webhook callback.
+
+Goal: evolve SignatureHub into a clean, API-first, independent service for signature/waiver workflows where the originator system creates a request, stores a returned reference code, and later checks status (via webhook push and/or API pull). Preserve the current signer flow and security model.
+
+CURRENT BASELINE (assume already implemented):
+- POST /api/requests creates a request and returns id + signUrl.
+- Signer visits /sign/:token, reviews document, verifies with 6-digit code (email/SMS/both), signs (typed/drawn), and completion is recorded in DB.
+- Status is available by request id, and a callbackUrl can receive webhook on signature completion.
+
+IMPLEMENT THESE CHANGES:
+
+1) API-first “originator reference code”
+- Ensure create request returns a stable “originator reference code” intended to be stored in the originator system.
+- Support querying status by that reference code (either directly as a primary lookup key or via a mapping endpoint).
+- Keep existing id-based endpoints working (backward compatible).
+
+2) Notification owned by SignatureHub
+- After request creation, SignatureHub sends the signer notification (SMS/email) with the unique signing link.
+- Verification PIN delivery must support email, sms, or both; signer can verify using the configured method(s). Ensure this is clearly represented in request fields and enforced server-side.
+
+3) Completion + webhook + status polling
+- On signature completion: persist signature record and audit trail as before.
+- If callbackUrl exists, send webhook with the completion event.
+- Also ensure there is an API mechanism for the originator to poll status using the stored reference code.
+
+4) Waiver-specific inputs: jurisdiction + metadata
+- For waiver requests (e.g., externalType indicates waiver or a new documentCategory=waiver), accept and store:
+  - jurisdiction (state/region) used to determine waiver rules later
+  - metadata (object) for originator-defined fields such as eventName
+- Return these fields via status APIs and include them in the webhook payload.
+
+5) Waiver templates via reference code (to avoid resending long HTML)
+- Add support for a standard waiver/template library:
+  - A request may specify either:
+    A) documentContent (inline HTML) OR
+    B) waiverTemplateCode (reference key) + optional mergeVariables / overrides
+- Create supporting endpoints (additive) to manage templates, e.g.:
+  - POST /api/templates (create/update template with templateCode, name, jurisdiction scope optional, html content, versioning)
+  - GET /api/templates/:templateCode (retrieve)
+- When waiverTemplateCode is provided, resolve the HTML server-side at signing-time (or at request creation-time) and ensure the exact content signed is what’s stored/audited for that request.
+
+6) Backward compatibility + constraints
+- Do not break existing endpoints; prefer additive request fields and new endpoints.
+- Preserve token security, verification expiration/attempt limits, rate limiting, Helmet/security headers, and audit trail fields.
+- Ensure historical integrity: a signed request must be able to reproduce the exact document content that was signed (store rendered HTML snapshot per request, or store template version/hash used).
+
+DELIVERABLES:
+- Updated data model/schema changes (additive) for requests, tokens, signatures, plus templates.
+- Updated API contracts (request/response examples) for:
+  - create request (including returned originator reference code)
+  - status lookup by reference code
+  - template create/retrieve
+- Updated webhook payload example including jurisdiction + metadata + template info (as applicable).
+- Brief explanation of how large HTML payloads are reduced (template reference + versioning + snapshot strategy).
+- Pseudocode / TypeScript-level guidance for key flows (create request, resolve template, signing, webhook).
