@@ -98,6 +98,10 @@ export interface CreateRequestResponse {
   signUrl: string;
   status: RequestStatus;
   expiresAt?: Date;
+  _debug?: {
+    emailSent: boolean;
+    emailError: string | null;
+  };
 }
 
 export interface SubmitSignatureInput {
