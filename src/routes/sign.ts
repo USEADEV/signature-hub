@@ -5,6 +5,7 @@ import { getRequestFromToken, submitSignature } from '../services/signature';
 import { sendVerificationCode, confirmVerificationCode, getAvailableMethods } from '../services/verification';
 import { updateRequestStatus } from '../db/queries';
 import { SigningPageData } from '../types';
+import { config } from '../config';
 
 const router = Router();
 
@@ -64,6 +65,7 @@ router.get('/:token/data', async (req: Request, res: Response) => {
       verificationMethod: request.verification_method,
       hasEmail: !!request.signer_email,
       hasPhone: !!request.signer_phone,
+      demoMode: config.demoMode,
     };
 
     res.json(pageData);

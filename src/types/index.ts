@@ -129,6 +129,7 @@ export interface SigningPageData {
   verificationMethod: VerificationMethod;
   hasEmail: boolean;
   hasPhone: boolean;
+  demoMode: boolean;
 }
 
 export interface CreateTemplateInput {

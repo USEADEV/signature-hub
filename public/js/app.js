@@ -42,6 +42,7 @@
     consentText: document.getElementById('consent-text'),
     btnSubmit: document.getElementById('btn-submit'),
     signedAt: document.getElementById('signed-at'),
+    demoHint: document.getElementById('demo-hint'),
   };
 
   // Get token from URL
@@ -107,6 +108,15 @@
       }
       if (pageData.hasPhone && (pageData.verificationMethod === 'sms' || pageData.verificationMethod === 'both')) {
         elements.btnVerifySms.classList.remove('hidden');
+      }
+
+      // Show/hide demo hint based on demo mode
+      if (elements.demoHint) {
+        if (pageData.demoMode) {
+          elements.demoHint.classList.remove('hidden');
+        } else {
+          elements.demoHint.classList.add('hidden');
+        }
       }
 
       // Check if already verified
