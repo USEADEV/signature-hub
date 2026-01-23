@@ -4,6 +4,35 @@
 
 SignatureHub is a document signature application designed to integrate with ShowConnect (equestrian management system). It enables users to receive signature requests via email or SMS, verify their identity through a verification code, and sign documents using either a typed or drawn signature.
 
+**Key Features:**
+- API-first design with stable reference codes for tracking
+- Waiver template system with merge variables
+- Email and SMS verification
+- Typed or drawn signature capture
+- Full audit trail
+- Webhook callbacks on completion
+
+---
+
+## Quick Start for Testing
+
+### Demo Mode
+
+The application runs in **demo mode** by default, which:
+- Skips sending real emails/SMS
+- Uses verification code `123456` for all requests
+- Uses SQLite database (no setup required)
+
+### Test URL
+
+Access the demo page at your deployed URL (e.g., `https://your-app.railway.app/`)
+
+### API Key
+
+Default API key for testing: `demo-api-key`
+
+Include in all API requests as header: `X-API-Key: demo-api-key`
+
 ---
 
 ## Technology Stack
@@ -26,6 +55,9 @@ SignatureHub is a document signature application designed to integrate with Show
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  1. ShowConnect ──► API Request ──► SignatureHub creates request            │
+│                                              │                              │
+│                                              ▼                              │
+│                              Returns: referenceCode + signUrl               │
 │                                              │                              │
 │                                              ▼                              │
 │                                   Email/SMS sent with unique link           │
@@ -65,11 +97,19 @@ Stores all signature request records.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | VARCHAR(36) | Primary key (UUID) |
+| `reference_code` | VARCHAR(20) | **Stable reference code (SIG-XXXXXXXX)** |
 | `external_ref` | VARCHAR(100) | ShowConnect reference (e.g., entry_id) |
 | `external_type` | VARCHAR(50) | Document type (e.g., 'waiver', 'entry_agreement') |
+| `document_category` | VARCHAR(50) | Category: 'waiver', 'agreement', 'consent', 'other' |
 | `document_name` | VARCHAR(255) | Human-readable document name |
-| `document_content` | TEXT | HTML content to display (optional) |
+| `document_content` | TEXT | HTML content to display |
+| `document_content_snapshot` | TEXT | **Frozen copy of content at signing time** |
 | `document_url` | VARCHAR(500) | URL to PDF if applicable |
+| `waiver_template_code` | VARCHAR(100) | **Template code if using templates** |
+| `waiver_template_version` | INTEGER | **Version of template used** |
+| `merge_variables` | TEXT | **JSON of merge variables used** |
+| `jurisdiction` | VARCHAR(10) | **State/jurisdiction code (e.g., 'CA', 'TX')** |
+| `metadata` | TEXT | **JSON for custom tracking data** |
 | `signer_name` | VARCHAR(255) | Expected signer's name |
 | `signer_email` | VARCHAR(255) | Email for verification |
 | `signer_phone` | VARCHAR(20) | Phone for SMS verification |
@@ -78,7 +118,7 @@ Stores all signature request records.
 | `created_at` | TIMESTAMP | When request was created |
 | `expires_at` | TIMESTAMP | Link expiration time |
 | `signed_at` | TIMESTAMP | When document was signed |
-| `callback_url` | VARCHAR(500) | Webhook URL for ShowConnect notification |
+| `callback_url` | VARCHAR(500) | Webhook URL for notification |
 | `created_by` | VARCHAR(100) | Who created the request |
 
 ### Table: `signature_tokens`
@@ -114,194 +154,439 @@ Stores completed signatures with audit trail.
 | `verification_method_used` | VARCHAR(20) | 'email' or 'sms' |
 | `consent_text` | TEXT | Legal text user agreed to |
 
+### Table: `waiver_templates`
+
+Stores reusable document templates.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | VARCHAR(36) | Primary key (UUID) |
+| `template_code` | VARCHAR(100) | **Unique template identifier** |
+| `name` | VARCHAR(255) | Human-readable template name |
+| `description` | TEXT | Template description |
+| `html_content` | TEXT | **HTML with merge variables** |
+| `jurisdiction` | VARCHAR(10) | State/jurisdiction this applies to |
+| `version` | INTEGER | Auto-incremented on content updates |
+| `is_active` | BOOLEAN | Whether template is active |
+| `created_at` | TIMESTAMP | When template was created |
+| `updated_at` | TIMESTAMP | When template was last updated |
+| `created_by` | VARCHAR(100) | Who created the template |
+
 ---
 
 ## API Reference
 
-### Internal API (requires `X-API-Key` header)
+### Authentication
 
-#### Create Signature Request
+All internal API endpoints require the `X-API-Key` header:
+
 ```
+X-API-Key: your_api_key
+```
+
+### Base URL
+
+Use your deployed URL (e.g., `https://your-app.railway.app`)
+
+---
+
+## Signature Request Endpoints
+
+### Create Signature Request
+
+Creates a new signature request and sends notification to signer.
+
+```http
 POST /api/requests
 Content-Type: application/json
 X-API-Key: your_api_key
+```
 
-Request Body:
+**Request Body:**
+
+```json
 {
-  "documentName": "Entry Agreement 2024",      // Required
-  "signerName": "John Doe",                    // Required
-  "signerEmail": "john@example.com",           // Required if verificationMethod is 'email'
-  "signerPhone": "+1234567890",                // Required if verificationMethod is 'sms'
-  "verificationMethod": "email",               // 'email', 'sms', or 'both' (default: 'email')
-  "documentContent": "<h1>Agreement</h1>...",  // Optional: HTML content
-  "documentUrl": "https://example.com/doc.pdf",// Optional: PDF link
-  "externalRef": "entry_123",                  // Optional: ShowConnect reference
-  "externalType": "entry_agreement",           // Optional: Document type
-  "expiresAt": "2024-12-31T23:59:59Z",        // Optional: Custom expiry
-  "callbackUrl": "https://showconnect.com/cb", // Optional: Webhook URL
-  "createdBy": "admin@showconnect.com"         // Optional: Creator identifier
+  "documentName": "Entry Agreement 2024",
+  "signerName": "John Doe",
+  "signerEmail": "john@example.com",
+  "signerPhone": "+1234567890",
+  "verificationMethod": "email",
+  "documentContent": "<h1>Agreement</h1><p>Terms here...</p>",
+  "documentUrl": "https://example.com/doc.pdf",
+  "waiverTemplateCode": "GENERAL_WAIVER_2024",
+  "mergeVariables": {
+    "participantName": "John Doe",
+    "eventName": "Summer Classic 2024",
+    "eventDate": "July 15, 2024"
+  },
+  "documentCategory": "waiver",
+  "jurisdiction": "CA",
+  "metadata": {
+    "entryId": 12345,
+    "showId": 678,
+    "customField": "any value"
+  },
+  "externalRef": "entry_123",
+  "externalType": "entry_agreement",
+  "expiresAt": "2024-12-31T23:59:59Z",
+  "callbackUrl": "https://showconnect.com/api/signatures/callback",
+  "createdBy": "admin@showconnect.com"
 }
+```
 
-Response (201 Created):
+**Field Requirements:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `documentName` | Yes | Human-readable document name |
+| `signerName` | Yes | Name of person signing |
+| `signerEmail` | Conditional | Required if verificationMethod is 'email' or 'both' |
+| `signerPhone` | Conditional | Required if verificationMethod is 'sms' or 'both' |
+| `verificationMethod` | No | 'email' (default), 'sms', or 'both' |
+| `documentContent` | Conditional | HTML content (required if no documentUrl or waiverTemplateCode) |
+| `documentUrl` | Conditional | PDF URL (required if no documentContent or waiverTemplateCode) |
+| `waiverTemplateCode` | Conditional | Template code (required if no documentContent or documentUrl) |
+| `mergeVariables` | No | Variables to merge into template |
+| `documentCategory` | No | 'waiver', 'agreement', 'consent', 'other' |
+| `jurisdiction` | No | State code (e.g., 'CA', 'TX') |
+| `metadata` | No | Custom JSON data for tracking |
+| `externalRef` | No | Your system's reference ID |
+| `externalType` | No | Document type in your system |
+| `expiresAt` | No | Custom expiration (default: 7 days) |
+| `callbackUrl` | No | Webhook URL for completion notification |
+| `createdBy` | No | Creator identifier |
+
+**Response (201 Created):**
+
+```json
 {
-  "id": "uuid-of-request",
-  "signUrl": "https://yourdomain.com/sign/abc123...",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "referenceCode": "SIG-A7K3M9X2",
+  "signUrl": "https://your-app.railway.app/sign/abc123def456...",
   "status": "pending",
-  "expiresAt": "2024-01-15T12:00:00Z"
+  "expiresAt": "2024-01-22T12:00:00.000Z"
 }
 ```
 
-#### Get Request Status
-```
+**Important:** Store the `referenceCode` - this is the stable identifier for tracking this request.
+
+---
+
+### Get Request by ID
+
+```http
 GET /api/requests/:id
 X-API-Key: your_api_key
+```
 
-Response (200 OK):
+**Response (200 OK):**
+
+```json
 {
-  "id": "uuid",
-  "document_name": "Entry Agreement 2024",
-  "signer_name": "John Doe",
-  "signer_email": "john@example.com",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "referenceCode": "SIG-A7K3M9X2",
+  "externalRef": "entry_123",
+  "externalType": "entry_agreement",
+  "documentCategory": "waiver",
+  "documentName": "Entry Agreement 2024",
+  "jurisdiction": "CA",
+  "metadata": {
+    "entryId": 12345,
+    "showId": 678
+  },
+  "waiverTemplateCode": "GENERAL_WAIVER_2024",
+  "waiverTemplateVersion": 3,
+  "signerName": "John Doe",
+  "signerEmail": "john@example.com",
   "status": "signed",
-  "created_at": "2024-01-08T10:00:00Z",
-  "signed_at": "2024-01-08T15:30:00Z",
-  ...
+  "createdAt": "2024-01-15T10:00:00.000Z",
+  "expiresAt": "2024-01-22T10:00:00.000Z",
+  "signedAt": "2024-01-15T14:30:00.000Z",
+  "signature": {
+    "signatureType": "typed",
+    "typedName": "John Doe",
+    "hasImage": false,
+    "verificationMethodUsed": "email",
+    "signerIp": "192.168.1.100"
+  }
 }
 ```
 
-#### Get Signature Details
+---
+
+### Get Request by Reference Code
+
+Use this to check status using the stable reference code.
+
+```http
+GET /api/requests/ref/:referenceCode
+X-API-Key: your_api_key
 ```
+
+**Example:**
+```http
+GET /api/requests/ref/SIG-A7K3M9X2
+```
+
+**Response:** Same as Get Request by ID
+
+---
+
+### Get Signature Details
+
+```http
 GET /api/requests/:id/signature
 X-API-Key: your_api_key
+```
 
-Response (200 OK):
+**Response (200 OK):**
+
+```json
 {
-  "id": "uuid",
-  "request_id": "uuid",
+  "id": "660e8400-e29b-41d4-a716-446655440001",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
   "signature_type": "typed",
   "typed_name": "John Doe",
-  "signer_ip": "192.168.1.1",
-  "user_agent": "Mozilla/5.0...",
-  "signed_at": "2024-01-08T15:30:00Z",
+  "signature_image": null,
+  "signer_ip": "192.168.1.100",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+  "signed_at": "2024-01-15T14:30:00.000Z",
   "verification_method_used": "email",
-  "consent_text": "I agree that my signature..."
+  "consent_text": "I agree that my electronic signature is legally binding..."
 }
 ```
 
-#### List Requests (with filters)
-```
-GET /api/requests?status=signed&externalRef=entry_123&limit=50
+---
+
+### List Requests
+
+```http
+GET /api/requests
 X-API-Key: your_api_key
+```
 
-Query Parameters:
-- status: Filter by status
-- externalRef: Filter by external reference
-- externalType: Filter by document type
-- signerEmail: Filter by signer email
-- createdBy: Filter by creator
-- limit: Max results (default 100)
-- offset: Pagination offset
+**Query Parameters:**
 
-Response (200 OK):
+| Parameter | Description |
+|-----------|-------------|
+| `status` | Filter by status |
+| `referenceCode` | Filter by reference code |
+| `externalRef` | Filter by external reference |
+| `externalType` | Filter by document type |
+| `signerEmail` | Filter by signer email |
+| `createdBy` | Filter by creator |
+| `jurisdiction` | Filter by jurisdiction |
+| `limit` | Max results (default: 100) |
+| `offset` | Pagination offset |
+
+**Example:**
+```http
+GET /api/requests?status=signed&jurisdiction=CA&limit=50
+```
+
+**Response (200 OK):**
+
+```json
 [
-  { ...request1 },
-  { ...request2 }
+  {
+    "id": "...",
+    "reference_code": "SIG-A7K3M9X2",
+    "document_name": "Entry Agreement 2024",
+    "signer_name": "John Doe",
+    "status": "signed",
+    ...
+  },
+  ...
 ]
 ```
 
-#### Cancel Request
-```
+---
+
+### Cancel Request
+
+```http
 DELETE /api/requests/:id
 X-API-Key: your_api_key
+```
 
-Response (200 OK):
+**Response (200 OK):**
+
+```json
 {
   "success": true,
   "message": "Request cancelled"
 }
 ```
 
-### Public API (signer-facing, no auth required)
+**Note:** Cannot cancel requests that are already signed.
 
-#### Load Signing Page
+---
+
+## Template Endpoints
+
+### Create Template
+
+```http
+POST /api/templates
+Content-Type: application/json
+X-API-Key: your_api_key
 ```
-GET /sign/:token
 
-Returns: HTML signing page
-```
+**Request Body:**
 
-#### Get Page Data
-```
-GET /sign/:token/data
-
-Response (200 OK):
+```json
 {
-  "requestId": "uuid",
-  "documentName": "Entry Agreement 2024",
-  "documentContent": "<h1>Agreement</h1>...",
-  "documentUrl": null,
+  "templateCode": "GENERAL_WAIVER_2024",
+  "name": "General Liability Waiver 2024",
+  "description": "Standard waiver for all events",
+  "htmlContent": "<h1>Liability Waiver</h1><p>I, {{participantName}}, agree to participate in {{eventName}} on {{eventDate}}...</p>",
+  "jurisdiction": "CA",
+  "createdBy": "admin@showconnect.com"
+}
+```
+
+**Field Requirements:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `templateCode` | Yes | Unique identifier (e.g., GENERAL_WAIVER_2024) |
+| `name` | Yes | Human-readable name |
+| `htmlContent` | Yes | HTML with merge variables |
+| `description` | No | Template description |
+| `jurisdiction` | No | State code this template applies to |
+| `createdBy` | No | Creator identifier |
+
+**Response (201 Created):**
+
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440002",
+  "template_code": "GENERAL_WAIVER_2024",
+  "name": "General Liability Waiver 2024",
+  "description": "Standard waiver for all events",
+  "html_content": "<h1>Liability Waiver</h1>...",
+  "jurisdiction": "CA",
+  "version": 1,
+  "is_active": true,
+  "created_at": "2024-01-15T10:00:00.000Z",
+  "updated_at": "2024-01-15T10:00:00.000Z",
+  "created_by": "admin@showconnect.com"
+}
+```
+
+---
+
+### Get Template
+
+```http
+GET /api/templates/:templateCode
+X-API-Key: your_api_key
+```
+
+**Example:**
+```http
+GET /api/templates/GENERAL_WAIVER_2024
+```
+
+---
+
+### Update Template
+
+```http
+PUT /api/templates/:templateCode
+Content-Type: application/json
+X-API-Key: your_api_key
+```
+
+**Request Body (all fields optional):**
+
+```json
+{
+  "name": "Updated Waiver Name",
+  "description": "Updated description",
+  "htmlContent": "<h1>Updated Content</h1>...",
+  "jurisdiction": "TX",
+  "isActive": true
+}
+```
+
+**Note:** Updating `htmlContent` automatically increments the version number.
+
+---
+
+### List Templates
+
+```http
+GET /api/templates
+X-API-Key: your_api_key
+```
+
+**Query Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `jurisdiction` | Filter by jurisdiction (also returns templates with no jurisdiction) |
+
+**Example:**
+```http
+GET /api/templates?jurisdiction=CA
+```
+
+---
+
+### Delete (Deactivate) Template
+
+```http
+DELETE /api/templates/:templateCode
+X-API-Key: your_api_key
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Template deactivated"
+}
+```
+
+**Note:** Templates are soft-deleted (marked inactive) to preserve audit trail.
+
+---
+
+## Merge Variables
+
+Templates support merge variables using `{{variableName}}` syntax.
+
+**Example Template:**
+
+```html
+<h1>Liability Waiver</h1>
+<p>Event: {{eventName}}</p>
+<p>Date: {{eventDate}}</p>
+<p>I, {{participantName}}, acknowledge the risks involved...</p>
+<p>Emergency Contact: {{emergencyContact}} - {{emergencyPhone}}</p>
+```
+
+**Using with Request:**
+
+```json
+{
+  "waiverTemplateCode": "GENERAL_WAIVER_2024",
+  "mergeVariables": {
+    "eventName": "Summer Classic 2024",
+    "eventDate": "July 15, 2024",
+    "participantName": "John Doe",
+    "emergencyContact": "Jane Doe",
+    "emergencyPhone": "(555) 123-4567"
+  },
   "signerName": "John Doe",
-  "isVerified": false,
-  "verificationMethod": "email",
-  "hasEmail": true,
-  "hasPhone": false
+  "signerEmail": "john@example.com",
+  "documentName": "Summer Classic 2024 Waiver"
 }
 ```
 
-#### Send Verification Code
-```
-POST /sign/:token/verify
-Content-Type: application/json
-
-Request Body:
-{
-  "method": "email"  // or "sms"
-}
-
-Response (200 OK):
-{
-  "success": true,
-  "message": "Verification code sent to jo***@example.com"
-}
-```
-
-#### Confirm Verification Code
-```
-POST /sign/:token/confirm
-Content-Type: application/json
-
-Request Body:
-{
-  "code": "123456"
-}
-
-Response (200 OK):
-{
-  "success": true,
-  "message": "Identity verified"
-}
-```
-
-#### Submit Signature
-```
-POST /sign/:token/submit
-Content-Type: application/json
-
-Request Body:
-{
-  "signatureType": "typed",           // or "drawn"
-  "typedName": "John Doe",            // Required if typed
-  "signatureImage": "data:image/png;base64,...", // Required if drawn
-  "consentText": "I agree that my signature..."
-}
-
-Response (200 OK):
-{
-  "success": true,
-  "message": "Document signed successfully",
-  "signedAt": "2024-01-08T15:30:00Z"
-}
-```
+**Result:** The template is resolved with all variables replaced, and the resolved content is stored in `document_content_snapshot` for audit purposes.
 
 ---
 
@@ -309,17 +594,30 @@ Response (200 OK):
 
 When a document is signed, SignatureHub sends a POST request to the configured `callbackUrl`:
 
-```
+```http
 POST {callbackUrl}
 Content-Type: application/json
 X-Signature-Event: signature.completed
+```
 
+**Payload:**
+
+```json
 {
   "event": "signature.completed",
-  "requestId": "uuid",
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "referenceCode": "SIG-A7K3M9X2",
   "externalRef": "entry_123",
   "externalType": "entry_agreement",
-  "signedAt": "2024-01-08T15:30:00Z",
+  "documentCategory": "waiver",
+  "jurisdiction": "CA",
+  "metadata": {
+    "entryId": 12345,
+    "showId": 678
+  },
+  "waiverTemplateCode": "GENERAL_WAIVER_2024",
+  "waiverTemplateVersion": 3,
+  "signedAt": "2024-01-15T14:30:00.000Z",
   "signatureType": "typed",
   "signerName": "John Doe"
 }
@@ -327,44 +625,162 @@ X-Signature-Event: signature.completed
 
 ---
 
-## Frontend Pages
+## Testing Guide
 
-### 1. Demo Landing Page (`/`)
+### Step 1: Create a Template (Optional)
 
-A demo page for testing that allows creating signature requests via a form.
+```bash
+curl -X POST https://your-app.railway.app/api/templates \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: demo-api-key" \
+  -d '{
+    "templateCode": "TEST_WAIVER",
+    "name": "Test Waiver",
+    "htmlContent": "<h1>Test Waiver</h1><p>I, {{participantName}}, agree to participate in {{eventName}}.</p>",
+    "jurisdiction": "CA"
+  }'
+```
 
-**Features:**
-- Form to enter document name, signer name, email, and content
-- Creates request via API and displays the sign URL
-- Shows demo mode hint (code: 123456)
+### Step 2: Create a Signature Request
 
-### 2. Signing Page (`/sign/:token`)
+**Using template:**
 
-Multi-step signature capture flow.
+```bash
+curl -X POST https://your-app.railway.app/api/requests \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: demo-api-key" \
+  -d '{
+    "documentName": "Test Event Waiver",
+    "signerName": "Test User",
+    "signerEmail": "test@example.com",
+    "waiverTemplateCode": "TEST_WAIVER",
+    "mergeVariables": {
+      "participantName": "Test User",
+      "eventName": "Test Event 2024"
+    },
+    "jurisdiction": "CA",
+    "metadata": {
+      "testId": 123
+    }
+  }'
+```
 
-**Step 1: Document Review**
-- Displays document name
-- Shows signer name
-- Renders HTML document content (if provided)
-- Link to PDF (if provided)
-- "Continue to Verification" button
+**Using inline content:**
 
-**Step 2: Identity Verification**
-- Choose verification method (email or SMS)
-- Enter 6-digit verification code
-- Shows demo hint in demo mode
-- Resend code option
+```bash
+curl -X POST https://your-app.railway.app/api/requests \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: demo-api-key" \
+  -d '{
+    "documentName": "Test Agreement",
+    "signerName": "Test User",
+    "signerEmail": "test@example.com",
+    "documentContent": "<h1>Agreement</h1><p>I agree to the terms.</p>"
+  }'
+```
 
-**Step 3: Signature Capture**
-- Two tabs: "Type Signature" and "Draw Signature"
-- Type: Text input with cursive preview
-- Draw: Canvas for mouse/touch drawing
-- Consent checkbox with legal text
-- "Sign Document" button (disabled until consent checked)
+### Step 3: Open the Sign URL
 
-**Step 4: Success**
-- Confirmation message
-- Timestamp of signature
+1. Copy the `signUrl` from the response
+2. Open it in a browser
+3. Review the document
+4. Click "Continue to Verification"
+5. In demo mode, enter code: `123456`
+6. Sign using typed or drawn signature
+7. Click "Sign Document"
+
+### Step 4: Check Status
+
+```bash
+curl https://your-app.railway.app/api/requests/ref/SIG-XXXXXXXX \
+  -H "X-API-Key: demo-api-key"
+```
+
+---
+
+## Request Status Lifecycle
+
+```
+pending → sent → viewed → verified → signed
+                    ↓
+                expired (if link expires)
+                    ↓
+               cancelled (via API)
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Request created, notification not yet sent |
+| `sent` | Email/SMS notification sent to signer |
+| `viewed` | Signer opened the signing page |
+| `verified` | Signer passed identity verification |
+| `signed` | Document successfully signed |
+| `expired` | Link expired before signing |
+| `cancelled` | Request cancelled via API |
+
+---
+
+## How to Add Templates
+
+### Method 1: Via API (Recommended)
+
+Use the template endpoints to create and manage templates programmatically.
+
+### Method 2: Direct Database Insert
+
+For bulk template creation, you can insert directly into the database:
+
+```sql
+INSERT INTO waiver_templates (
+  id, template_code, name, description, html_content,
+  jurisdiction, version, is_active, created_by
+) VALUES (
+  'unique-uuid-here',
+  'TEMPLATE_CODE',
+  'Template Name',
+  'Description of template',
+  '<h1>Waiver Title</h1><p>Content with {{mergeVariable}}...</p>',
+  'CA',
+  1,
+  1,
+  'admin@showconnect.com'
+);
+```
+
+### Template Best Practices
+
+1. **Use descriptive template codes**: `GENERAL_WAIVER_2024`, `ENTRY_AGREEMENT_CA`, etc.
+2. **Version by year**: Create new templates each year rather than modifying old ones
+3. **Use merge variables** for dynamic content: `{{participantName}}`, `{{eventDate}}`, etc.
+4. **Set jurisdiction** for state-specific waivers
+5. **Test templates** before using in production by creating a test signature request
+
+### Sample Template HTML
+
+```html
+<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+  <h1 style="text-align: center;">RELEASE AND WAIVER OF LIABILITY</h1>
+  <h2 style="text-align: center;">{{eventName}}</h2>
+
+  <p><strong>Event Date:</strong> {{eventDate}}</p>
+  <p><strong>Location:</strong> {{eventLocation}}</p>
+
+  <p>I, <strong>{{participantName}}</strong>, in consideration of being permitted to
+  participate in the above event, hereby agree to the following:</p>
+
+  <ol>
+    <li>I acknowledge that equestrian activities involve inherent risks...</li>
+    <li>I release and hold harmless {{organizationName}} from any claims...</li>
+    <li>I agree to follow all safety rules and regulations...</li>
+  </ol>
+
+  <p><strong>Emergency Contact:</strong> {{emergencyName}} - {{emergencyPhone}}</p>
+
+  <p style="margin-top: 30px;">
+    By signing below, I acknowledge that I have read and understand this waiver.
+  </p>
+</div>
+```
 
 ---
 
@@ -380,7 +796,7 @@ signature-app/
 │   ├── db/
 │   │   ├── connection.ts        # MySQL connection pool
 │   │   ├── sqlite.ts            # SQLite connection and schema
-│   │   ├── queries.ts           # Database operations (supports both DBs)
+│   │   ├── queries.ts           # Database operations
 │   │   └── migrate.ts           # MySQL migration runner
 │   ├── middleware/
 │   │   ├── auth.ts              # API key authentication
@@ -403,11 +819,10 @@ signature-app/
 │       └── app.js               # Signing page logic
 ├── migrations/
 │   └── 001_initial.sql          # MySQL schema
-├── data/                        # SQLite database directory (created at runtime)
+├── data/                        # SQLite database directory
 ├── package.json
 ├── tsconfig.json
 ├── railway.json                 # Railway deployment config
-├── Procfile                     # Process definition
 ├── .env.example                 # Environment template
 └── README.md
 ```
@@ -455,28 +870,7 @@ signature-app/
 5. **API Authentication**: X-API-Key header required for internal endpoints
 6. **Security Headers**: Helmet.js for CSP, XSS protection, etc.
 7. **Audit Trail**: Full logging of IP, user agent, timestamps, consent text
-
----
-
-## Request Status Lifecycle
-
-```
-pending → sent → viewed → verified → signed
-                    ↓
-                expired (if link expires)
-                    ↓
-               cancelled (via API)
-```
-
-| Status | Description |
-|--------|-------------|
-| `pending` | Request created, notification not yet sent |
-| `sent` | Email/SMS notification sent to signer |
-| `viewed` | Signer opened the signing page |
-| `verified` | Signer passed identity verification |
-| `signed` | Document successfully signed |
-| `expired` | Link expired before signing |
-| `cancelled` | Request cancelled via API |
+8. **Content Snapshots**: Exact signed content preserved for audit
 
 ---
 
@@ -489,13 +883,24 @@ headers.set("X-API-Key", signatureApiKey);
 headers.setContentType(MediaType.APPLICATION_JSON);
 
 Map<String, Object> request = Map.of(
-    "externalRef", entryId.toString(),
-    "externalType", "entry_agreement",
     "documentName", "Entry Agreement 2024",
     "signerName", participant.getName(),
     "signerEmail", participant.getEmail(),
     "signerPhone", participant.getPhone(),
     "verificationMethod", "email",
+    "waiverTemplateCode", "ENTRY_WAIVER_2024",
+    "mergeVariables", Map.of(
+        "participantName", participant.getName(),
+        "eventName", event.getName(),
+        "eventDate", event.getDate().toString()
+    ),
+    "jurisdiction", event.getState(),
+    "metadata", Map.of(
+        "entryId", entry.getId(),
+        "showId", event.getShowId()
+    ),
+    "externalRef", entry.getId().toString(),
+    "externalType", "entry_agreement",
     "callbackUrl", baseUrl + "/api/signatures/callback"
 );
 
@@ -506,8 +911,12 @@ ResponseEntity<SignatureResponse> response = restTemplate.postForEntity(
     SignatureResponse.class
 );
 
+// Store the reference code for status tracking
+String referenceCode = response.getBody().getReferenceCode();
+entry.setSignatureReferenceCode(referenceCode);
+
+// The signUrl can be sent to the participant
 String signUrl = response.getBody().getSignUrl();
-// Send signUrl to participant or embed in your UI
 ```
 
 ---
@@ -527,4 +936,5 @@ String signUrl = response.getBody().getSignUrl();
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | Initial | Core signature flow with MySQL |
-| 1.1.0 | Current | Added SQLite support, demo mode, Twilio & Mandrill integration |
+| 1.1.0 | - | Added SQLite support, demo mode |
+| 1.2.0 | Current | Added waiver templates, reference codes, jurisdiction, metadata |
