@@ -95,12 +95,15 @@ async function sendSms(
   });
 }
 
+// Brand name prefix for SMS messages
+const SMS_BRAND = 'USEA eSign';
+
 export async function sendVerificationSms(
   to: string,
   code: string,
   documentName: string
 ): Promise<void> {
-  const message = `Your verification code for signing "${documentName}" is: ${code}. This code expires in ${config.verification.codeExpiryMinutes} minutes.`;
+  const message = `[${SMS_BRAND}] Your verification code for signing "${documentName}" is: ${code}. This code expires in ${config.verification.codeExpiryMinutes} minutes.`;
 
   const result = await sendSms(to, message);
 
@@ -117,7 +120,7 @@ export async function sendSignatureRequestSms(
   documentName: string,
   signUrl: string
 ): Promise<void> {
-  const message = `Hi ${signerName}, you've been requested to sign "${documentName}". Please visit: ${signUrl}`;
+  const message = `[${SMS_BRAND}] Hi ${signerName}, you've been requested to sign "${documentName}". Please visit: ${signUrl}`;
 
   const result = await sendSms(to, message);
 
@@ -130,7 +133,7 @@ export async function sendSignatureConfirmationSms(
   to: string,
   documentName: string
 ): Promise<void> {
-  const message = `You have successfully signed "${documentName}". Thank you!`;
+  const message = `[${SMS_BRAND}] You have successfully signed "${documentName}". Thank you!`;
 
   const result = await sendSms(to, message);
 
