@@ -30,6 +30,7 @@
     verificationCode: document.getElementById('verification-code'),
     btnConfirmCode: document.getElementById('btn-confirm-code'),
     btnResendCode: document.getElementById('btn-resend-code'),
+    btnTryDifferent: document.getElementById('btn-try-different'),
     tabType: document.getElementById('tab-type'),
     tabDraw: document.getElementById('tab-draw'),
     signatureTypePanel: document.getElementById('signature-type'),
@@ -147,11 +148,28 @@
       elements.verificationOptions.classList.add('hidden');
       elements.verificationCodeSection.classList.remove('hidden');
       elements.verificationCode.focus();
+
+      // Show "Try Different Method" if both methods are available
+      const hasBothMethods = pageData.hasEmail && pageData.hasPhone && pageData.verificationMethod === 'both';
+      if (hasBothMethods && elements.btnTryDifferent) {
+        elements.btnTryDifferent.classList.remove('hidden');
+      }
     } catch (error) {
       alert(error.message);
     } finally {
       elements.btnVerifyEmail.disabled = false;
       elements.btnVerifySms.disabled = false;
+    }
+  }
+
+  // Reset verification to try different method
+  function resetVerificationMethod() {
+    currentVerificationMethod = null;
+    elements.verificationCode.value = '';
+    elements.verificationCodeSection.classList.add('hidden');
+    elements.verificationOptions.classList.remove('hidden');
+    if (elements.btnTryDifferent) {
+      elements.btnTryDifferent.classList.add('hidden');
     }
   }
 
@@ -291,6 +309,10 @@
         sendVerificationCode(currentVerificationMethod);
       }
     });
+
+    if (elements.btnTryDifferent) {
+      elements.btnTryDifferent.addEventListener('click', resetVerificationMethod);
+    }
 
     elements.tabType.addEventListener('click', () => switchSignatureType('typed'));
     elements.tabDraw.addEventListener('click', () => switchSignatureType('drawn'));

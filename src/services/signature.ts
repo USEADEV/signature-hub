@@ -34,26 +34,40 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
 
   // Send notification to signer (skip in demo mode)
   if (!config.demoMode) {
-    try {
-      if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
+    let notificationSent = false;
+
+    // Send email notification if email method is enabled
+    if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
+      try {
         await sendSignatureRequestEmail(
           input.signerEmail,
           input.signerName,
           input.documentName,
           signUrl
         );
-        await updateRequestStatus(request.id, 'sent');
-      } else if (input.signerPhone && input.verificationMethod === 'sms') {
+        notificationSent = true;
+      } catch (error) {
+        console.error('Failed to send email notification:', error);
+      }
+    }
+
+    // Send SMS notification if SMS method is enabled
+    if (input.signerPhone && (input.verificationMethod === 'sms' || input.verificationMethod === 'both')) {
+      try {
         await sendSignatureRequestSms(
           input.signerPhone,
           input.signerName,
           input.documentName,
           signUrl
         );
-        await updateRequestStatus(request.id, 'sent');
+        notificationSent = true;
+      } catch (error) {
+        console.error('Failed to send SMS notification:', error);
       }
-    } catch (error) {
-      console.error('Failed to send notification:', error);
+    }
+
+    if (notificationSent) {
+      await updateRequestStatus(request.id, 'sent');
     }
   }
 
