@@ -20,7 +20,12 @@ import {
 } from '../db/queries';
 import { config } from '../config';
 import { sendSignatureRequestEmail, sendSignatureConfirmationEmail } from './email';
-import { sendSignatureRequestSms, sendSignatureConfirmationSms } from './twilio';
+import { sendSignatureRequestSms as sendSmsTwilio, sendSignatureConfirmationSms as sendConfirmTwilio } from './twilio';
+import { sendSignatureRequestSms as sendSmsMandrill, sendSignatureConfirmationSms as sendConfirmMandrill } from './mandrill-sms';
+
+// Select SMS provider based on config
+const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
+const sendSignatureConfirmationSms = config.smsProvider === 'mandrill' ? sendConfirmMandrill : sendConfirmTwilio;
 
 export async function createSignatureRequest(input: CreateRequestInput): Promise<CreateRequestResponse> {
   const { request, token } = await dbCreateRequest(input);
