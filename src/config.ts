@@ -31,6 +31,14 @@ export const config = {
     phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
   },
 
+  mandrill: {
+    apiKey: process.env.MANDRILL_API_KEY || '',
+    phoneNumber: process.env.MANDRILL_PHONE_NUMBER || '',
+  },
+
+  // SMS provider: 'twilio' or 'mandrill'
+  smsProvider: (process.env.SMS_PROVIDER || 'mandrill') as 'twilio' | 'mandrill',
+
   email: {
     host: optionalEnv('SMTP_HOST', 'smtp.example.com'),
     port: parseInt(optionalEnv('SMTP_PORT', '587'), 10),

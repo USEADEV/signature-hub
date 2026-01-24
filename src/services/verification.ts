@@ -1,8 +1,12 @@
 import { SignatureRequest, SignatureToken } from '../types';
 import { setVerificationCode, verifyCode } from '../db/queries';
 import { sendVerificationEmail } from './email';
-import { sendVerificationSms } from './twilio';
+import { sendVerificationSms as sendViaTwilio } from './twilio';
+import { sendVerificationSms as sendViaMandrill } from './mandrill-sms';
 import { config } from '../config';
+
+// Select SMS provider based on config
+const sendVerificationSms = config.smsProvider === 'mandrill' ? sendViaMandrill : sendViaTwilio;
 
 export type SendMethod = 'email' | 'sms';
 
