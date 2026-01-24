@@ -55,13 +55,13 @@ export const config = {
 
   verification: {
     codeLength: 6,
-    codeExpiryMinutes: 5,
+    codeExpiryMinutes: parseInt(process.env.VERIFICATION_CODE_EXPIRY_MINUTES || '5', 10),
     maxAttempts: 3,
     demoCode: '123456', // Fixed code for demo mode
   },
 
   request: {
-    defaultExpiryDays: 7,
+    defaultExpiryDays: parseInt(process.env.SIGNATURE_REQUEST_EXPIRY_DAYS || '7', 10),
   },
 };
 
