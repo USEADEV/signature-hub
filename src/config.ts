@@ -36,6 +36,9 @@ export const config = {
     phoneNumber: process.env.MANDRILL_PHONE_NUMBER || '',
   },
 
+  // SMS brand name displayed in messages
+  smsBrand: process.env.SMS_BRAND || 'USEA eSign',
+
   // SMS provider: 'twilio' or 'mandrill'
   smsProvider: (process.env.SMS_PROVIDER || 'mandrill') as 'twilio' | 'mandrill',
 
