@@ -1,6 +1,8 @@
-# SignatureHub
+# USEA eSign
 
 A streamlined document signature application that integrates with ShowConnect (equestrian management system). Users receive signature requests via email/SMS, verify their identity, and sign documents with either typed or drawn signatures.
+
+**Developed and designed by [useventing.com](https://useventing.com)**
 
 ## Features
 
@@ -126,7 +128,7 @@ X-API-Key: your_api_key
 
 ### Webhook Callback
 
-When a document is signed, SignatureHub will POST to the configured `callbackUrl`:
+When a document is signed, USEA eSign will POST to the configured `callbackUrl`:
 
 ```json
 {
@@ -217,8 +219,12 @@ signature-app/
 │       └── index.ts          # TypeScript interfaces
 ├── public/
 │   ├── sign.html             # Signature capture page
+│   ├── index.html            # Demo/test console
 │   ├── css/
 │   │   └── style.css
+│   ├── images/
+│   │   ├── usea-logo.svg     # USEA logo (color)
+│   │   └── usea-logo-white.svg # USEA logo (white, for dark backgrounds)
 │   └── js/
 │       ├── signature-pad.js  # Drawing canvas
 │       └── app.js            # Page logic

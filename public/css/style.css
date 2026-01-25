@@ -1,5 +1,5 @@
-/* SignatureHub - Clean, Professional Design */
-/* Inspired by Showconnect.org aesthetic */
+/* USEA eSign - Clean, Professional Design */
+/* Developed and designed by useventing.com */
 
 :root {
   --color-primary: #1a1a2e;
@@ -49,6 +49,18 @@ header {
   text-align: center;
   padding: 24px 0 32px;
   margin-bottom: 24px;
+}
+
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  height: 48px;
+  width: auto;
 }
 
 header h1 {
@@ -483,6 +495,22 @@ footer {
   padding: 32px 0;
   color: var(--color-text-light);
   font-size: 0.85rem;
+}
+
+footer .attribution {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+footer .attribution a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+footer .attribution a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 /* Responsive */
