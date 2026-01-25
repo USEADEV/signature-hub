@@ -359,6 +359,12 @@
           </div>
 
           <div class="form-group">
+            <label for="pkgTemplateCode">Template Code (optional - use instead of document content)</label>
+            <input type="text" id="pkgTemplateCode" placeholder="e.g., entry-waiver-2024">
+            <small style="color: #666; display: block; margin-top: 5px;">If provided, the template's HTML content will be used instead of the document content below.</small>
+          </div>
+
+          <div class="form-group">
             <label for="pkgDocumentContent">Document Content (HTML with merge variables)</label>
             <textarea id="pkgDocumentContent" placeholder="Use {{variable}} for merge variables"><h3>Entry Agreement - {{eventName}}</h3>
 <p><strong>Event Date:</strong> {{eventDate}}</p>
@@ -636,8 +642,9 @@
             'X-API-Key': apiKey
           },
           body: JSON.stringify({
+            templateCode: document.getElementById('pkgTemplateCode').value || undefined,
             documentName: document.getElementById('pkgDocumentName').value,
-            documentContent: document.getElementById('pkgDocumentContent').value,
+            documentContent: document.getElementById('pkgDocumentContent').value || undefined,
             eventDate: document.getElementById('pkgEventDate').value || undefined,
             externalRef: document.getElementById('pkgExternalRef').value || undefined,
             jurisdiction: document.getElementById('pkgJurisdiction').value || undefined,
