@@ -260,6 +260,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="single">Single Signer</button>
         <button class="tab-btn" data-tab="package">Multi-Party Package</button>
+        <button class="tab-btn" data-tab="templates">Templates</button>
       </div>
 
       <!-- Single Signer Tab -->
@@ -359,9 +360,11 @@
           </div>
 
           <div class="form-group">
-            <label for="pkgTemplateCode">Template Code (optional - use instead of document content)</label>
-            <input type="text" id="pkgTemplateCode" placeholder="e.g., entry-waiver-2024">
-            <small style="color: #666; display: block; margin-top: 5px;">If provided, the template's HTML content will be used instead of the document content below.</small>
+            <label for="pkgTemplateCode">Template (optional - use instead of document content)</label>
+            <select id="pkgTemplateCode">
+              <option value="">-- No template (use document content below) --</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 5px;">Select a template or create one in the Templates tab. Template content will replace the document content below.</small>
           </div>
 
           <div class="form-group">
@@ -421,6 +424,96 @@
             <p style="margin-top: 10px;"><strong>Age Requirements:</strong> Trainer, Coach, and Guardian must be 18+ at the event date. Rider and Owner can be any age.</p>
             <p style="margin-top: 10px;"><strong>Date of Birth:</strong> Required for roles with minimum age requirements (Trainer, Coach, Guardian).</p>
             <p style="margin-top: 10px;"><strong>Merge Variables:</strong> Use <code>{{variableName}}</code> in document content to insert dynamic values.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates Tab -->
+      <div id="tab-templates" class="tab-content">
+        <div class="demo-form">
+          <h2>Manage Templates</h2>
+          <p>Create reusable document templates with merge variables.</p>
+
+          <div class="form-group">
+            <label for="tplApiKey">API Key</label>
+            <input type="password" id="tplApiKey" placeholder="Enter your API key">
+          </div>
+
+          <button id="loadTemplatesBtn" class="btn btn-secondary" style="margin-bottom: 20px;">Load Existing Templates</button>
+
+          <div id="templatesList" class="templates-list" style="margin-bottom: 30px; display: none;">
+            <h3>Existing Templates</h3>
+            <div id="templatesContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e1e4e8; border-radius: 6px; padding: 10px;">
+              <p style="color: #666;">Click "Load Existing Templates" to see available templates.</p>
+            </div>
+          </div>
+
+          <h3>Create New Template</h3>
+
+          <div class="form-group">
+            <label for="tplCode">Template Code *</label>
+            <input type="text" id="tplCode" placeholder="e.g., entry-waiver-2024 (unique identifier)">
+          </div>
+
+          <div class="form-group">
+            <label for="tplName">Template Name *</label>
+            <input type="text" id="tplName" placeholder="e.g., Entry Waiver 2024">
+          </div>
+
+          <div class="form-group">
+            <label for="tplDescription">Description</label>
+            <input type="text" id="tplDescription" placeholder="Brief description of this template">
+          </div>
+
+          <div class="form-group">
+            <label for="tplJurisdiction">Jurisdiction (optional)</label>
+            <input type="text" id="tplJurisdiction" placeholder="e.g., US-VA">
+          </div>
+
+          <div class="form-group">
+            <label for="tplHtmlContent">HTML Content *</label>
+            <textarea id="tplHtmlContent" style="min-height: 200px;" placeholder="HTML template with merge variables"><h1>{{eventName}} - Entry Agreement</h1>
+
+<p><strong>Event Date:</strong> {{eventDate}}</p>
+<p><strong>Participant:</strong> {{signerName}}</p>
+<p><strong>Role(s):</strong> {{signerRoles}}</p>
+
+<h2>Release and Waiver of Liability</h2>
+
+<p>I, <strong>{{signerName}}</strong>, in consideration of being permitted to participate in {{eventName}}, hereby agree to the following:</p>
+
+<ol>
+  <li>I understand the inherent risks of equestrian activities and voluntarily assume all such risks.</li>
+  <li>I release and hold harmless the event organizers from any and all liability.</li>
+  <li>I confirm that all information provided is accurate and complete.</li>
+  <li>I agree to follow all rules and safety guidelines.</li>
+</ol>
+
+<p>This agreement is legally binding upon signature.</p>
+
+{{jurisdictionAddendum}}</textarea>
+          </div>
+
+          <button id="createTemplateBtn" class="btn btn-primary" style="width: 100%;">Create Template</button>
+
+          <div id="templateResult" class="result-box hidden">
+            <h3>Template Created!</h3>
+            <p><strong>Template Code:</strong> <span id="createdTplCode"></span></p>
+            <p><strong>Name:</strong> <span id="createdTplName"></span></p>
+          </div>
+
+          <div class="hint-box">
+            <h4>Available Merge Variables</h4>
+            <p><strong>Package variables:</strong> <code>{{eventName}}</code>, <code>{{eventDate}}</code>, <code>{{horseName}}</code>, or any custom variable you pass in mergeVariables</p>
+            <p style="margin-top: 10px;"><strong>Auto-generated signer variables:</strong></p>
+            <ul style="margin: 5px 0 0 20px;">
+              <li><code>{{signerName}}</code> - Current signer's name</li>
+              <li><code>{{signerEmail}}</code> - Current signer's email</li>
+              <li><code>{{signerRoles}}</code> - Roles (e.g., "Rider, Owner")</li>
+              <li><code>{{signerAge}}</code> - Age at event date</li>
+              <li><code>{{signerIsMinor}}</code> - "Yes" or "No"</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong>Jurisdiction:</strong> <code>{{jurisdictionAddendum}}</code> - Inserts jurisdiction-specific legal text</p>
           </div>
         </div>
       </div>
@@ -685,6 +778,158 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Create Signing Package';
+      }
+    });
+
+    // ============================================
+    // TEMPLATES TAB
+    // ============================================
+
+    // Load templates into dropdown and list
+    async function loadTemplates(apiKey, showList = false) {
+      try {
+        const response = await fetch('/api/templates', {
+          headers: { 'X-API-Key': apiKey }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load templates');
+        }
+
+        const templates = await response.json();
+
+        // Populate package form dropdown
+        const dropdown = document.getElementById('pkgTemplateCode');
+        dropdown.innerHTML = '<option value="">-- No template (use document content below) --</option>';
+        templates.forEach(tpl => {
+          dropdown.innerHTML += `<option value="${tpl.template_code}">${tpl.name} (${tpl.template_code})</option>`;
+        });
+
+        // Show templates list if requested
+        if (showList) {
+          const container = document.getElementById('templatesContainer');
+          if (templates.length === 0) {
+            container.innerHTML = '<p style="color: #666;">No templates found. Create one below!</p>';
+          } else {
+            container.innerHTML = templates.map(tpl => `
+              <div style="padding: 10px; border-bottom: 1px solid #e1e4e8; cursor: pointer;" onclick="selectTemplate('${tpl.template_code}')">
+                <strong>${tpl.name}</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem;">${tpl.template_code}</code>
+                ${tpl.description ? `<p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${tpl.description}</p>` : ''}
+              </div>
+            `).join('');
+          }
+          document.getElementById('templatesList').style.display = 'block';
+        }
+
+        return templates;
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        return [];
+      }
+    }
+
+    // Select a template from the list
+    function selectTemplate(templateCode) {
+      // Switch to package tab and select the template
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector('[data-tab="package"]').classList.add('active');
+      document.getElementById('tab-package').classList.add('active');
+      document.getElementById('pkgTemplateCode').value = templateCode;
+    }
+
+    // Load templates button
+    document.getElementById('loadTemplatesBtn').addEventListener('click', async function() {
+      const apiKey = document.getElementById('tplApiKey').value;
+      if (!apiKey) {
+        alert('Please enter your API key');
+        return;
+      }
+
+      this.disabled = true;
+      this.textContent = 'Loading...';
+
+      await loadTemplates(apiKey, true);
+
+      this.disabled = false;
+      this.textContent = 'Load Existing Templates';
+    });
+
+    // Create template button
+    document.getElementById('createTemplateBtn').addEventListener('click', async function() {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Creating Template...';
+
+      try {
+        const apiKey = document.getElementById('tplApiKey').value;
+        if (!apiKey) {
+          alert('Please enter your API key');
+          btn.disabled = false;
+          btn.textContent = 'Create Template';
+          return;
+        }
+
+        const templateCode = document.getElementById('tplCode').value.trim();
+        const name = document.getElementById('tplName').value.trim();
+        const htmlContent = document.getElementById('tplHtmlContent').value.trim();
+
+        if (!templateCode || !name || !htmlContent) {
+          alert('Template Code, Name, and HTML Content are required');
+          btn.disabled = false;
+          btn.textContent = 'Create Template';
+          return;
+        }
+
+        const response = await fetch('/api/templates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          },
+          body: JSON.stringify({
+            templateCode: templateCode,
+            name: name,
+            description: document.getElementById('tplDescription').value.trim() || undefined,
+            jurisdiction: document.getElementById('tplJurisdiction').value.trim() || undefined,
+            htmlContent: htmlContent
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('createdTplCode').textContent = data.template_code;
+          document.getElementById('createdTplName').textContent = data.name;
+          document.getElementById('templateResult').classList.remove('hidden');
+
+          // Reload templates to update dropdown
+          await loadTemplates(apiKey, true);
+
+          // Clear form
+          document.getElementById('tplCode').value = '';
+          document.getElementById('tplName').value = '';
+          document.getElementById('tplDescription').value = '';
+        } else {
+          alert('Error: ' + (data.error || 'Failed to create template'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Template';
+      }
+    });
+
+    // Sync API keys between tabs
+    document.getElementById('tplApiKey').addEventListener('change', function() {
+      document.getElementById('pkgApiKey').value = this.value;
+    });
+    document.getElementById('pkgApiKey').addEventListener('change', function() {
+      document.getElementById('tplApiKey').value = this.value;
+      // Auto-load templates when API key is entered in package tab
+      if (this.value) {
+        loadTemplates(this.value, false);
       }
     });
   </script>
