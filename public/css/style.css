@@ -218,6 +218,15 @@ p {
   margin-bottom: 0;
 }
 
+.signer-roles {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
 .document-content {
   background: var(--color-white);
   border: 1px solid var(--color-border);
@@ -352,6 +361,13 @@ p {
   margin-bottom: 24px;
   font-weight: 500;
   font-size: 0.95rem;
+}
+
+.verification-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 /* Demo Hint */

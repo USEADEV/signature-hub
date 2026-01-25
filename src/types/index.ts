@@ -6,6 +6,10 @@ export type SignatureType = 'typed' | 'drawn';
 
 export type DocumentCategory = 'waiver' | 'agreement' | 'consent' | 'other';
 
+export type PackageStatus = 'pending' | 'partial' | 'complete' | 'expired' | 'cancelled';
+
+export type RoleStatus = 'pending' | 'sent' | 'signed';
+
 export interface SignatureRequest {
   id: string;
   reference_code: string;
@@ -31,6 +35,8 @@ export interface SignatureRequest {
   signed_at?: Date;
   callback_url?: string;
   created_by?: string;
+  package_id?: string;
+  roles_display?: string;
 }
 
 export interface SignatureToken {
@@ -130,6 +136,8 @@ export interface SigningPageData {
   hasEmail: boolean;
   hasPhone: boolean;
   demoMode: boolean;
+  roles?: string[];
+  packageCode?: string;
 }
 
 export interface CreateTemplateInput {
@@ -188,5 +196,148 @@ export interface RequestStatusResponse {
     hasImage: boolean;
     verificationMethodUsed?: string;
     signerIp?: string;
+  };
+}
+
+// ============================================
+// SIGNING PACKAGES (Multi-party signing)
+// ============================================
+
+export interface SigningPackage {
+  id: string;
+  package_code: string;
+  external_ref?: string;
+  external_type?: string;
+  template_code?: string;
+  template_version?: number;
+  document_name: string;
+  document_content?: string;
+  jurisdiction?: string;
+  merge_variables?: string;
+  event_date?: string;
+  status: PackageStatus;
+  total_signers: number;
+  completed_signers: number;
+  created_at: Date;
+  updated_at: Date;
+  expires_at?: Date;
+  completed_at?: Date;
+  callback_url?: string;
+  created_by?: string;
+}
+
+export interface SigningRole {
+  id: string;
+  package_id: string;
+  role_name: string;
+  signer_name: string;
+  signer_email?: string;
+  signer_phone?: string;
+  date_of_birth?: string;
+  is_minor: boolean;
+  request_id?: string;
+  consolidated_group?: string;
+  status: RoleStatus;
+  signed_at?: Date;
+  created_at: Date;
+}
+
+export interface JurisdictionAddendum {
+  id: string;
+  jurisdiction_code: string;
+  jurisdiction_name: string;
+  addendum_html: string;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SignerInput {
+  role: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  isMinor?: boolean;
+}
+
+export interface CreatePackageInput {
+  templateCode?: string;
+  documentName?: string;
+  documentContent?: string;
+  externalRef?: string;
+  externalType?: string;
+  jurisdiction?: string;
+  mergeVariables?: Record<string, string>;
+  eventDate?: string;
+  signers: SignerInput[];
+  verificationMethod?: VerificationMethod;
+  expiresAt?: Date;
+  callbackUrl?: string;
+  createdBy?: string;
+}
+
+// Role age requirements - minimum age required to sign for each role
+export interface RoleAgeRequirement {
+  role: string;
+  minimumAge: number;
+}
+
+export interface ConsolidatedSigner {
+  email?: string;
+  phone?: string;
+  name: string;
+  roles: string[];
+  signUrl: string;
+  requestId: string;
+  status: RoleStatus;
+}
+
+export interface CreatePackageResponse {
+  packageId: string;
+  packageCode: string;
+  status: PackageStatus;
+  documentName: string;
+  eventDate?: string;
+  totalSigners: number;
+  signatureRequests: {
+    signerName: string;
+    roles: string[];
+    signUrl: string;
+  }[];
+  expiresAt?: Date;
+}
+
+export interface PackageStatusResponse {
+  packageId: string;
+  packageCode: string;
+  externalRef?: string;
+  externalType?: string;
+  documentName: string;
+  jurisdiction?: string;
+  status: PackageStatus;
+  totalSigners: number;
+  completedSigners: number;
+  createdAt: Date;
+  expiresAt?: Date;
+  completedAt?: Date;
+  signers: ConsolidatedSigner[];
+}
+
+export interface PackageWebhookPayload {
+  event: 'package.completed' | 'package.partial' | 'signer.completed';
+  packageId: string;
+  packageCode: string;
+  externalRef?: string;
+  externalType?: string;
+  jurisdiction?: string;
+  documentName: string;
+  completedSigners: number;
+  totalSigners: number;
+  signer?: {
+    name: string;
+    email?: string;
+    roles: string[];
+    signedAt: Date;
   };
 }

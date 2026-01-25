@@ -18,6 +18,7 @@
     stepSuccess: document.getElementById('step-success'),
     documentName: document.getElementById('document-name'),
     signerName: document.getElementById('signer-name'),
+    signerRoles: document.getElementById('signer-roles'),
     documentContent: document.getElementById('document-content'),
     documentUrl: document.getElementById('document-url'),
     documentLink: document.getElementById('document-link'),
@@ -92,6 +93,13 @@
 
       elements.documentName.textContent = pageData.documentName;
       elements.signerName.textContent = pageData.signerName;
+
+      // Display roles if this is a package signing with multiple roles
+      if (pageData.roles && pageData.roles.length > 0 && elements.signerRoles) {
+        const roleNames = pageData.roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ');
+        elements.signerRoles.innerHTML = `<strong>Role(s):</strong> ${roleNames}`;
+        elements.signerRoles.classList.remove('hidden');
+      }
 
       if (pageData.documentContent) {
         elements.documentContent.innerHTML = pageData.documentContent;

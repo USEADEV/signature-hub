@@ -18,7 +18,24 @@ import {
   listTemplates,
   deleteTemplate,
 } from '../db/queries';
-import { CreateRequestInput, RequestFilters, CreateTemplateInput, UpdateTemplateInput } from '../types';
+import {
+  createPackage,
+  getPackageById,
+  getPackageByCode,
+  getPackageStatus,
+  listPackages,
+  upsertJurisdictionAddendum,
+  listJurisdictions,
+  getRoleAgeRequirements,
+} from '../services/package';
+import {
+  CreateRequestInput,
+  RequestFilters,
+  CreateTemplateInput,
+  UpdateTemplateInput,
+  CreatePackageInput,
+  PackageStatus,
+} from '../types';
 
 const router = Router();
 
@@ -297,6 +314,161 @@ router.delete('/templates/:templateCode', async (req: Request, res: Response) =>
     console.error('Failed to delete template:', error);
     res.status(500).json({ error: 'Failed to delete template' });
   }
+});
+
+// ============================================
+// SIGNING PACKAGES (Multi-party signing)
+// ============================================
+
+// Create a new signing package
+router.post('/packages', async (req: Request, res: Response) => {
+  try {
+    const input: CreatePackageInput = {
+      templateCode: req.body.templateCode,
+      documentName: req.body.documentName,
+      documentContent: req.body.documentContent,
+      externalRef: req.body.externalRef,
+      externalType: req.body.externalType,
+      jurisdiction: req.body.jurisdiction,
+      mergeVariables: req.body.mergeVariables,
+      eventDate: req.body.eventDate,
+      signers: req.body.signers,
+      verificationMethod: req.body.verificationMethod,
+      expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : undefined,
+      callbackUrl: req.body.callbackUrl,
+      createdBy: req.body.createdBy,
+    };
+
+    // Validation
+    if (!input.signers || !Array.isArray(input.signers) || input.signers.length === 0) {
+      res.status(400).json({ error: 'signers array is required and must not be empty' });
+      return;
+    }
+
+    // Validate each signer
+    for (let i = 0; i < input.signers.length; i++) {
+      const signer = input.signers[i];
+      if (!signer.role) {
+        res.status(400).json({ error: `signers[${i}].role is required` });
+        return;
+      }
+      if (!signer.name) {
+        res.status(400).json({ error: `signers[${i}].name is required` });
+        return;
+      }
+      if (!signer.email && !signer.phone) {
+        res.status(400).json({ error: `signers[${i}] must have either email or phone` });
+        return;
+      }
+    }
+
+    // Must have either templateCode, documentContent, or documentName with content
+    if (!input.templateCode && !input.documentContent && !input.documentName) {
+      res.status(400).json({ error: 'One of templateCode, documentContent, or documentName is required' });
+      return;
+    }
+
+    const result = await createPackage(input);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Failed to create package:', error);
+    // Return validation errors with 400 status
+    if (error instanceof Error && error.message.startsWith('Age validation failed:')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to create signing package' });
+  }
+});
+
+// Get a package by ID
+router.get('/packages/:id', async (req: Request, res: Response) => {
+  try {
+    // Try by ID first, then by code
+    let pkg = await getPackageById(req.params.id);
+    if (!pkg) {
+      pkg = await getPackageByCode(req.params.id);
+    }
+    if (!pkg) {
+      res.status(404).json({ error: 'Package not found' });
+      return;
+    }
+
+    const status = await getPackageStatus(pkg.id);
+    res.json(status);
+  } catch (error) {
+    console.error('Failed to get package:', error);
+    res.status(500).json({ error: 'Failed to get package' });
+  }
+});
+
+// List packages with filters
+router.get('/packages', async (req: Request, res: Response) => {
+  try {
+    const filters = {
+      status: req.query.status as PackageStatus | undefined,
+      externalRef: req.query.externalRef as string | undefined,
+      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+      offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined,
+    };
+
+    const packages = await listPackages(filters);
+    res.json(packages);
+  } catch (error) {
+    console.error('Failed to list packages:', error);
+    res.status(500).json({ error: 'Failed to list packages' });
+  }
+});
+
+// ============================================
+// JURISDICTIONS
+// ============================================
+
+// Create or update a jurisdiction addendum
+router.post('/jurisdictions', async (req: Request, res: Response) => {
+  try {
+    const { jurisdictionCode, jurisdictionName, addendumHtml } = req.body;
+
+    if (!jurisdictionCode) {
+      res.status(400).json({ error: 'jurisdictionCode is required' });
+      return;
+    }
+    if (!jurisdictionName) {
+      res.status(400).json({ error: 'jurisdictionName is required' });
+      return;
+    }
+    if (!addendumHtml) {
+      res.status(400).json({ error: 'addendumHtml is required' });
+      return;
+    }
+
+    const addendum = await upsertJurisdictionAddendum(jurisdictionCode, jurisdictionName, addendumHtml);
+    res.status(201).json(addendum);
+  } catch (error) {
+    console.error('Failed to create jurisdiction:', error);
+    res.status(500).json({ error: 'Failed to create jurisdiction addendum' });
+  }
+});
+
+// List jurisdictions
+router.get('/jurisdictions', async (req: Request, res: Response) => {
+  try {
+    const jurisdictions = await listJurisdictions();
+    res.json(jurisdictions);
+  } catch (error) {
+    console.error('Failed to list jurisdictions:', error);
+    res.status(500).json({ error: 'Failed to list jurisdictions' });
+  }
+});
+
+// ============================================
+// ROLE REQUIREMENTS
+// ============================================
+
+// Get role age requirements
+router.get('/roles/requirements', (_req: Request, res: Response) => {
+  const requirements = getRoleAgeRequirements();
+  res.json(requirements);
 });
 
 export default router;

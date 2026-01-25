@@ -66,6 +66,9 @@ router.get('/:token/data', async (req: Request, res: Response) => {
       hasEmail: !!request.signer_email,
       hasPhone: !!request.signer_phone,
       demoMode: config.demoMode,
+      // Include roles if this is part of a package
+      roles: request.roles_display ? JSON.parse(request.roles_display) : undefined,
+      packageCode: request.package_id ? request.reference_code : undefined,
     };
 
     res.json(pageData);

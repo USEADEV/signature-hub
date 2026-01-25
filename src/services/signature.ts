@@ -22,6 +22,7 @@ import { config } from '../config';
 import { sendSignatureRequestEmail, sendSignatureConfirmationEmail } from './email';
 import { sendSignatureRequestSms as sendSmsTwilio, sendSignatureConfirmationSms as sendConfirmTwilio } from './twilio';
 import { sendSignatureRequestSms as sendSmsMandrill, sendSignatureConfirmationSms as sendConfirmMandrill } from './mandrill-sms';
+import { onSignatureCompleted } from './package';
 
 // Select SMS provider based on config
 const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
@@ -222,6 +223,13 @@ export async function submitSignature(
     } catch (error) {
       console.error('Failed to send callback:', error);
     }
+  }
+
+  // Update package status if this request is part of a package
+  try {
+    await onSignatureCompleted(request.id);
+  } catch (error) {
+    console.error('Failed to update package status:', error);
   }
 
   return { success: true, signature };

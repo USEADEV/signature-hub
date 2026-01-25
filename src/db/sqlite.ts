@@ -102,6 +102,70 @@ function initializeTables(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_template_code ON waiver_templates(template_code);
     CREATE INDEX IF NOT EXISTS idx_template_jurisdiction ON waiver_templates(jurisdiction);
+
+    -- Signing packages for multi-party signing
+    CREATE TABLE IF NOT EXISTS signing_packages (
+      id TEXT PRIMARY KEY,
+      package_code TEXT NOT NULL UNIQUE,
+      external_ref TEXT,
+      external_type TEXT,
+      template_code TEXT,
+      template_version INTEGER,
+      document_name TEXT NOT NULL,
+      document_content TEXT,
+      jurisdiction TEXT,
+      merge_variables TEXT,
+      event_date TEXT,
+      status TEXT DEFAULT 'pending',
+      total_signers INTEGER DEFAULT 0,
+      completed_signers INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT,
+      completed_at TEXT,
+      callback_url TEXT,
+      created_by TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pkg_package_code ON signing_packages(package_code);
+    CREATE INDEX IF NOT EXISTS idx_pkg_external_ref ON signing_packages(external_ref);
+    CREATE INDEX IF NOT EXISTS idx_pkg_status ON signing_packages(status);
+
+    -- Signing roles within packages
+    CREATE TABLE IF NOT EXISTS signing_roles (
+      id TEXT PRIMARY KEY,
+      package_id TEXT NOT NULL,
+      role_name TEXT NOT NULL,
+      signer_name TEXT NOT NULL,
+      signer_email TEXT,
+      signer_phone TEXT,
+      date_of_birth TEXT,
+      is_minor INTEGER DEFAULT 0,
+      request_id TEXT,
+      consolidated_group TEXT,
+      status TEXT DEFAULT 'pending',
+      signed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (package_id) REFERENCES signing_packages(id) ON DELETE CASCADE,
+      FOREIGN KEY (request_id) REFERENCES signature_requests(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_package_id ON signing_roles(package_id);
+    CREATE INDEX IF NOT EXISTS idx_role_consolidated_group ON signing_roles(consolidated_group);
+    CREATE INDEX IF NOT EXISTS idx_role_signer_email ON signing_roles(signer_email);
+
+    -- Jurisdiction addendums
+    CREATE TABLE IF NOT EXISTS jurisdiction_addendums (
+      id TEXT PRIMARY KEY,
+      jurisdiction_code TEXT NOT NULL UNIQUE,
+      jurisdiction_name TEXT NOT NULL,
+      addendum_html TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jurisdiction_code ON jurisdiction_addendums(jurisdiction_code);
   `);
 
   // Run migrations for existing databases
@@ -151,6 +215,39 @@ function migrateExistingTables(db: Database.Database): void {
 
   if (!columns.includes('metadata')) {
     db.exec(`ALTER TABLE signature_requests ADD COLUMN metadata TEXT`);
+  }
+
+  if (!columns.includes('package_id')) {
+    db.exec(`ALTER TABLE signature_requests ADD COLUMN package_id TEXT`);
+  }
+
+  if (!columns.includes('roles_display')) {
+    db.exec(`ALTER TABLE signature_requests ADD COLUMN roles_display TEXT`);
+  }
+
+  // Migrate signing_packages table
+  migratePackagesTables(db);
+}
+
+function migratePackagesTables(db: Database.Database): void {
+  // Check if signing_packages table exists
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='signing_packages'").all();
+  if (tables.length === 0) return;
+
+  // Check for event_date column in signing_packages
+  const pkgTableInfo = db.prepare("PRAGMA table_info(signing_packages)").all() as Array<{ name: string }>;
+  const pkgColumns = pkgTableInfo.map(col => col.name);
+
+  if (!pkgColumns.includes('event_date')) {
+    db.exec(`ALTER TABLE signing_packages ADD COLUMN event_date TEXT`);
+  }
+
+  // Check for date_of_birth column in signing_roles
+  const rolesTableInfo = db.prepare("PRAGMA table_info(signing_roles)").all() as Array<{ name: string }>;
+  const rolesColumns = rolesTableInfo.map(col => col.name);
+
+  if (!rolesColumns.includes('date_of_birth')) {
+    db.exec(`ALTER TABLE signing_roles ADD COLUMN date_of_birth TEXT`);
   }
 }
 
