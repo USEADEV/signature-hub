@@ -921,17 +921,23 @@
       }
     });
 
-    // Sync API keys between tabs
-    document.getElementById('tplApiKey').addEventListener('change', function() {
-      document.getElementById('pkgApiKey').value = this.value;
-    });
-    document.getElementById('pkgApiKey').addEventListener('change', function() {
-      document.getElementById('tplApiKey').value = this.value;
-      // Auto-load templates when API key is entered in package tab
-      if (this.value) {
-        loadTemplates(this.value, false);
+    // Sync API keys between all tabs
+    function syncApiKeys(sourceId) {
+      const value = document.getElementById(sourceId).value;
+      ['apiKey', 'pkgApiKey', 'tplApiKey'].forEach(id => {
+        if (id !== sourceId) {
+          document.getElementById(id).value = value;
+        }
+      });
+      // Auto-load templates when API key is entered
+      if (value && sourceId !== 'tplApiKey') {
+        loadTemplates(value, false);
       }
-    });
+    }
+
+    document.getElementById('apiKey').addEventListener('input', () => syncApiKeys('apiKey'));
+    document.getElementById('pkgApiKey').addEventListener('input', () => syncApiKeys('pkgApiKey'));
+    document.getElementById('tplApiKey').addEventListener('input', () => syncApiKeys('tplApiKey'));
   </script>
 </body>
 </html>
