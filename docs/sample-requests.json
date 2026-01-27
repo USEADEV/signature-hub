@@ -100,6 +100,40 @@
       "_expectedResult": "One signature request created for family@example.com with roles: participant (x2), guardian"
     },
 
+    "perSignerVerification": {
+      "_description": "Package where each signer has different verification methods",
+      "endpoint": "POST /api/packages",
+      "request": {
+        "documentName": "Mixed Verification Waiver",
+        "documentContent": "<h2>{{documentName}}</h2><p>Participant: {{signerName}}</p>",
+        "signers": [
+          {
+            "role": "participant",
+            "name": "Alex Student",
+            "email": "alex@example.com",
+            "verificationMethod": "email",
+            "_comment": "Student prefers email verification"
+          },
+          {
+            "role": "guardian",
+            "name": "Parent Smith",
+            "phone": "+15551234567",
+            "verificationMethod": "sms",
+            "_comment": "Parent only has phone number"
+          },
+          {
+            "role": "coach",
+            "name": "Coach Johnson",
+            "email": "coach@example.com",
+            "phone": "+15559876543",
+            "verificationMethod": "both",
+            "_comment": "Coach prefers both for extra security"
+          }
+        ]
+      },
+      "_note": "Each signer can have their own verificationMethod, overriding the package default"
+    },
+
     "fullFeaturedPackage": {
       "_description": "Complete package with all optional fields",
       "endpoint": "POST /api/packages",
@@ -199,6 +233,40 @@
         "jurisdictionCode": "US-CA",
         "jurisdictionName": "California",
         "addendumHtml": "<div class=\"jurisdiction-notice\"><h4>California-Specific Terms</h4><p>This agreement is governed by the laws of the State of California. In accordance with California Civil Code Section 1542, I expressly waive any rights or benefits under that section which provides: \"A general release does not extend to claims that the creditor or releasing party does not know or suspect to exist in his or her favor at the time of executing the release and that, if known by him or her, would have materially affected his or her settlement with the debtor or released party.\"</p></div>"
+      }
+    }
+  },
+
+  "replaceSigner": {
+    "_description": "Replace a signer who refuses to sign or needs to be changed",
+
+    "replaceGuardian": {
+      "_description": "Replace a guardian who can't sign with another family member",
+      "endpoint": "PUT /api/packages/{packageId}/roles/{roleId}",
+      "request": {
+        "name": "Aunt Mary Smith",
+        "email": "aunt.mary@example.com",
+        "phone": "+15559876543",
+        "verificationMethod": "email"
+      },
+      "_workflow": [
+        "1. Original package created with Parent A as guardian",
+        "2. Parent A is unavailable or refuses to sign",
+        "3. Use 'Get Package Status' to find the roleId for the guardian role",
+        "4. Call this endpoint to replace Parent A with Aunt Mary",
+        "5. Parent A's signing link is invalidated",
+        "6. Aunt Mary receives new signing link",
+        "7. Aunt Mary signs as guardian"
+      ]
+    },
+
+    "replaceCoach": {
+      "_description": "Replace a coach who left the organization",
+      "endpoint": "PUT /api/packages/{packageId}/roles/{roleId}",
+      "request": {
+        "name": "New Coach Williams",
+        "phone": "+15551112222",
+        "verificationMethod": "sms"
       }
     }
   },

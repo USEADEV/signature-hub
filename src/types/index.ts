@@ -259,6 +259,23 @@ export interface SignerInput {
   phone?: string;
   dateOfBirth?: string;
   isMinor?: boolean;
+  verificationMethod?: VerificationMethod;
+}
+
+export interface ReplaceSignerInput {
+  name: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  verificationMethod?: VerificationMethod;
+}
+
+export interface ReplaceSignerResponse {
+  roleId: string;
+  roleName: string;
+  previousSigner: string;
+  newSigner: string;
+  signUrl: string;
 }
 
 export interface CreatePackageInput {
@@ -287,7 +304,7 @@ export interface ConsolidatedSigner {
   email?: string;
   phone?: string;
   name: string;
-  roles: string[];
+  roles: { roleId: string; roleName: string }[];
   signUrl: string;
   requestId: string;
   status: RoleStatus;

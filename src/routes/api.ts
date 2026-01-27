@@ -27,6 +27,7 @@ import {
   upsertJurisdictionAddendum,
   listJurisdictions,
   getRoleAgeRequirements,
+  replaceSigner,
 } from '../services/package';
 import {
   CreateRequestInput,
@@ -35,6 +36,7 @@ import {
   UpdateTemplateInput,
   CreatePackageInput,
   PackageStatus,
+  ReplaceSignerInput,
 } from '../types';
 
 const router = Router();
@@ -417,6 +419,55 @@ router.get('/packages', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to list packages:', error);
     res.status(500).json({ error: 'Failed to list packages' });
+  }
+});
+
+// Replace a signer in a package
+router.put('/packages/:id/roles/:roleId', async (req: Request, res: Response) => {
+  try {
+    const input: ReplaceSignerInput = {
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      dateOfBirth: req.body.dateOfBirth,
+      verificationMethod: req.body.verificationMethod,
+    };
+
+    // Validation
+    if (!input.name) {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    if (!input.email && !input.phone) {
+      res.status(400).json({ error: 'Either email or phone is required' });
+      return;
+    }
+
+    // Try to find package by ID or code
+    let pkg = await getPackageById(req.params.id);
+    if (!pkg) {
+      pkg = await getPackageByCode(req.params.id);
+    }
+    if (!pkg) {
+      res.status(404).json({ error: 'Package not found' });
+      return;
+    }
+
+    const result = await replaceSigner(pkg.id, req.params.roleId, input);
+    res.json(result);
+  } catch (error) {
+    console.error('Failed to replace signer:', error);
+    if (error instanceof Error) {
+      // Return user-friendly errors for validation failures
+      if (error.message.includes('not found') ||
+          error.message.includes('Cannot replace') ||
+          error.message.includes('already signed') ||
+          error.message.includes('required')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+    }
+    res.status(500).json({ error: 'Failed to replace signer' });
   }
 });
 

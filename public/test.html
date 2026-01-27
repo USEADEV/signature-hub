@@ -401,7 +401,10 @@
             <div>
               <div class="form-row">
                 <label>Template Code (optional)</label>
-                <input type="text" id="cp-templateCode" placeholder="e.g., LIABILITY_WAIVER_2024">
+                <select id="cp-templateCode">
+                  <option value="">-- No template (use custom content) --</option>
+                </select>
+                <button class="btn-quick" id="btn-loadPackageTemplates" style="margin-top:5px;">Refresh Templates</button>
                 <p class="hint">Use a pre-defined template. Leave empty for custom content.</p>
               </div>
               <div class="form-row">
@@ -462,28 +465,32 @@
 
           <div class="form-row" style="margin-top: 15px;">
             <label>Signers (JSON Array) *</label>
-            <textarea id="cp-signers" style="min-height: 150px;">[
+            <textarea id="cp-signers" style="min-height: 180px;">[
   {
     "role": "participant",
     "name": "John Athlete",
     "email": "john@example.com",
     "dateOfBirth": "2010-05-15",
-    "isMinor": true
+    "isMinor": true,
+    "verificationMethod": "email"
   },
   {
     "role": "guardian",
     "name": "Jane Parent",
     "email": "jane@example.com",
-    "dateOfBirth": "1985-03-20"
+    "phone": "+15551234567",
+    "dateOfBirth": "1985-03-20",
+    "verificationMethod": "email"
   },
   {
     "role": "coach",
     "name": "Mike Coach",
-    "email": "mike@example.com",
-    "dateOfBirth": "1990-01-10"
+    "phone": "+15559876543",
+    "dateOfBirth": "1990-01-10",
+    "verificationMethod": "sms"
   }
 ]</textarea>
-            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Signers with same email are consolidated.</p>
+            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Each signer can have their own verificationMethod (email/sms/both). Signers with same email are consolidated.</p>
           </div>
 
           <button class="btn-send" id="btn-createPackage">Create Package</button>
@@ -552,6 +559,53 @@
 
           <button class="btn-send" id="btn-roleRequirements">Get Requirements</button>
           <div id="response-roleRequirements" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- Replace Signer -->
+        <div class="endpoint-card" style="grid-column: span 2;">
+          <h3><span class="method put">PUT</span> Replace Signer</h3>
+          <div class="endpoint-path">/api/packages/:id/roles/:roleId</div>
+          <p class="hint">Replace a signer who hasn't signed yet. Use this when someone refuses to sign and needs to be replaced.</p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div class="form-row">
+                <label>Package ID or Code *</label>
+                <input type="text" id="rs-packageId" placeholder="Enter package ID or code">
+                <button class="btn-quick use-saved" data-target="rs-packageId" data-field="packageId" style="margin-top:5px;">Use Saved</button>
+              </div>
+              <div class="form-row">
+                <label>Role ID *</label>
+                <input type="text" id="rs-roleId" placeholder="Get from package status response">
+                <p class="hint">Use "Get Package Status" to find the role ID</p>
+              </div>
+            </div>
+            <div>
+              <div class="form-row">
+                <label>New Signer Name *</label>
+                <input type="text" id="rs-name" placeholder="Full name">
+              </div>
+              <div class="form-row">
+                <label>New Signer Email</label>
+                <input type="email" id="rs-email" placeholder="email@example.com">
+              </div>
+              <div class="form-row">
+                <label>New Signer Phone</label>
+                <input type="tel" id="rs-phone" placeholder="+15551234567">
+              </div>
+              <div class="form-row">
+                <label>Verification Method</label>
+                <select id="rs-verificationMethod">
+                  <option value="email">Email</option>
+                  <option value="sms">SMS</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-send" id="btn-replaceSigner">Replace Signer</button>
+          <div id="response-replaceSigner" class="response-area" style="display:none;"></div>
         </div>
 
       </div>

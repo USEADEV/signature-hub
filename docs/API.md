@@ -167,6 +167,29 @@ Multi-party packages allow collecting signatures from multiple people with autom
 | phone | string | Conditional | Required if verificationMethod is "sms" |
 | dateOfBirth | string | No | Date of birth for age validation (YYYY-MM-DD) |
 | isMinor | boolean | No | Flag indicating if signer is a minor |
+| verificationMethod | string | No | Per-signer verification: "email", "sms", or "both" (overrides package default) |
+
+**Per-Signer Verification:**
+Each signer can have their own verification method, which is useful when signers have different contact information available:
+
+```json
+{
+  "signers": [
+    {
+      "role": "participant",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "verificationMethod": "email"
+    },
+    {
+      "role": "coach",
+      "name": "Mike Wilson",
+      "phone": "+15551234567",
+      "verificationMethod": "sms"
+    }
+  ]
+}
+```
 
 **Response (201):**
 ```json
@@ -269,6 +292,56 @@ Returns detailed status including all signers and their completion status.
 **GET** `/api/packages`
 
 Query parameters: `status`, `externalRef`, `limit`, `offset`
+
+### Replace Signer
+
+**PUT** `/api/packages/:id/roles/:roleId`
+
+Replace a signer who hasn't signed yet. Use this when someone refuses to sign or needs to be replaced with a different person.
+
+**Request Body:**
+```json
+{
+  "name": "New Signer Name",
+  "email": "newsigner@example.com",
+  "phone": "+15551234567",
+  "verificationMethod": "email"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| name | string | Yes | Full name of the new signer |
+| email | string | Conditional | Required for email verification |
+| phone | string | Conditional | Required for SMS verification |
+| dateOfBirth | string | No | Date of birth (YYYY-MM-DD) |
+| verificationMethod | string | No | "email", "sms", or "both" (default: "email") |
+
+**Response (200):**
+```json
+{
+  "roleId": "role_abc123",
+  "roleName": "guardian",
+  "previousSigner": "Jane Smith",
+  "newSigner": "Bob Smith",
+  "signUrl": "https://your-domain.com/sign/newtoken789"
+}
+```
+
+**Use Case: Signer Refusal Flow**
+
+1. A signing package is created with multiple signers
+2. One signer (e.g., guardian) refuses to sign
+3. The participant calls the API to replace the guardian
+4. The old signing link is invalidated
+5. A new signing link is generated for the replacement signer
+6. The new signer receives their invitation to sign
+
+**Notes:**
+- Can only replace signers who haven't signed yet
+- The role name (e.g., "guardian", "coach") stays the same
+- If roles were consolidated (same email), all consolidated roles are updated
+- The original signing link becomes invalid immediately
 
 ---
 

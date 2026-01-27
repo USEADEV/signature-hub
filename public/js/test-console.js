@@ -154,6 +154,8 @@
     document.getElementById('btn-listPackages').addEventListener('click', listPackages);
     document.getElementById('btn-listJurisdictions').addEventListener('click', listJurisdictions);
     document.getElementById('btn-roleRequirements').addEventListener('click', getRoleRequirements);
+    document.getElementById('btn-loadPackageTemplates').addEventListener('click', loadPackageTemplates);
+    document.getElementById('btn-replaceSigner').addEventListener('click', replaceSigner);
 
     // Signing Flow
     document.getElementById('btn-getSigningData').addEventListener('click', getSigningData);
@@ -408,6 +410,61 @@
   async function getRoleRequirements() {
     const result = await apiCall('GET', '/api/roles/requirements');
     showResponse('roleRequirements', result.status, result.data);
+  }
+
+  async function loadPackageTemplates() {
+    if (!getApiKey()) {
+      alert('Please enter your API key first');
+      return;
+    }
+
+    const result = await apiCall('GET', '/api/templates');
+    if (result.status === 200 && Array.isArray(result.data)) {
+      const select = document.getElementById('cp-templateCode');
+      // Keep the first option (no template)
+      select.innerHTML = '<option value="">-- No template (use custom content) --</option>';
+      result.data.forEach(function(template) {
+        const option = document.createElement('option');
+        option.value = template.templateCode || template.template_code;
+        option.textContent = (template.name || template.templateCode) +
+          (template.jurisdiction ? ' (' + template.jurisdiction + ')' : '');
+        select.appendChild(option);
+      });
+    }
+  }
+
+  async function replaceSigner() {
+    const packageId = document.getElementById('rs-packageId').value;
+    const roleId = document.getElementById('rs-roleId').value;
+
+    if (!packageId || !roleId) {
+      alert('Package ID and Role ID are required');
+      return;
+    }
+
+    const name = document.getElementById('rs-name').value;
+    const email = document.getElementById('rs-email').value;
+    const phone = document.getElementById('rs-phone').value;
+
+    if (!name) {
+      alert('New signer name is required');
+      return;
+    }
+
+    if (!email && !phone) {
+      alert('New signer must have either email or phone');
+      return;
+    }
+
+    const body = {
+      name: name,
+      email: email || undefined,
+      phone: phone || undefined,
+      verificationMethod: document.getElementById('rs-verificationMethod').value
+    };
+
+    const result = await apiCall('PUT', '/api/packages/' + packageId + '/roles/' + roleId, body);
+    showResponse('replaceSigner', result.status, result.data);
   }
 
   // === SIGNING FLOW ===

@@ -11,6 +11,9 @@ import {
   PackageStatus,
   JurisdictionAddendum,
   RoleAgeRequirement,
+  ReplaceSignerInput,
+  ReplaceSignerResponse,
+  VerificationMethod,
 } from '../types';
 import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId } from '../db/queries';
 import { getSqliteDb } from '../db/sqlite';
@@ -282,6 +285,20 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     const signerVariables = buildSignerVariables(primarySigner, roles, input.eventDate);
     const signerDocumentContent = resolveTemplate(baseDocumentContent, signerVariables);
 
+    // Determine verification method - use signer-specific if provided, else package default
+    const signerVerificationMethod = primarySigner.verificationMethod || input.verificationMethod || 'email';
+
+    // Validate verification method matches contact info
+    if (signerVerificationMethod === 'email' && !primarySigner.email) {
+      throw new Error(`Signer ${primarySigner.name} requires email for email verification`);
+    }
+    if (signerVerificationMethod === 'sms' && !primarySigner.phone) {
+      throw new Error(`Signer ${primarySigner.name} requires phone for SMS verification`);
+    }
+    if (signerVerificationMethod === 'both' && (!primarySigner.email || !primarySigner.phone)) {
+      throw new Error(`Signer ${primarySigner.name} requires both email and phone for 'both' verification`);
+    }
+
     // Create a single signature request for this consolidated signer
     const { request, token } = await createRequest({
       documentName,
@@ -289,7 +306,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
       signerName: primarySigner.name,
       signerEmail: primarySigner.email,
       signerPhone: primarySigner.phone,
-      verificationMethod: input.verificationMethod || 'email',
+      verificationMethod: signerVerificationMethod,
       expiresAt,
       externalRef: input.externalRef,
       externalType: input.externalType,
@@ -406,7 +423,7 @@ export async function getPackageStatus(packageId: string): Promise<PackageStatus
   const signers: ConsolidatedSigner[] = [];
   for (const [, roleGroup] of signerGroups) {
     const primaryRole = roleGroup[0];
-    const roleNames = roleGroup.map(r => r.role_name);
+    const rolesWithIds = roleGroup.map(r => ({ roleId: r.id, roleName: r.role_name }));
 
     // Get sign URL from request
     let signUrl = '';
@@ -424,7 +441,7 @@ export async function getPackageStatus(packageId: string): Promise<PackageStatus
       email: primaryRole.signer_email,
       phone: primaryRole.signer_phone,
       name: primaryRole.signer_name,
-      roles: roleNames,
+      roles: rolesWithIds,
       signUrl,
       requestId: primaryRole.request_id || '',
       status: isSigned ? 'signed' : primaryRole.status,
@@ -554,4 +571,180 @@ export async function listJurisdictions(): Promise<JurisdictionAddendum[]> {
     ...a,
     is_active: Boolean(a.is_active),
   }));
+}
+
+// Get a specific role by ID
+export async function getRoleById(roleId: string): Promise<SigningRole | null> {
+  const role = sqliteQueryOne<SigningRole>(
+    `SELECT * FROM signing_roles WHERE id = ?`,
+    [roleId]
+  );
+  return role ? { ...role, is_minor: Boolean(role.is_minor) } : null;
+}
+
+// Replace a signer in a package (before they've signed)
+export async function replaceSigner(
+  packageId: string,
+  roleId: string,
+  input: ReplaceSignerInput
+): Promise<ReplaceSignerResponse> {
+  // Get the package
+  const pkg = await getPackageById(packageId);
+  if (!pkg) {
+    throw new Error('Package not found');
+  }
+
+  // Check package status - can't replace signers on completed/cancelled packages
+  if (pkg.status === 'complete' || pkg.status === 'cancelled') {
+    throw new Error(`Cannot replace signer on a ${pkg.status} package`);
+  }
+
+  // Get the role
+  const role = await getRoleById(roleId);
+  if (!role) {
+    throw new Error('Role not found');
+  }
+
+  // Verify the role belongs to this package
+  if (role.package_id !== pkg.id) {
+    throw new Error('Role does not belong to this package');
+  }
+
+  // Check if role has already been signed
+  if (role.status === 'signed') {
+    throw new Error(`Cannot replace signer - ${role.signer_name} has already signed as ${role.role_name}`);
+  }
+
+  // Validate new signer has required contact info
+  const verificationMethod: VerificationMethod = input.verificationMethod || 'email';
+  if (verificationMethod === 'email' && !input.email) {
+    throw new Error('Email is required for email verification');
+  }
+  if (verificationMethod === 'sms' && !input.phone) {
+    throw new Error('Phone is required for SMS verification');
+  }
+  if (verificationMethod === 'both' && (!input.email || !input.phone)) {
+    throw new Error('Both email and phone are required for both verification');
+  }
+
+  const previousSigner = role.signer_name;
+
+  // Check if there are other roles with the same consolidated_group
+  // If so, we need to handle them together
+  const consolidatedRoles = sqliteQuery<SigningRole>(
+    `SELECT * FROM signing_roles WHERE consolidated_group = ? AND id != ?`,
+    [role.consolidated_group, roleId]
+  );
+
+  // Get the old request to cancel it
+  const oldRequestId = role.request_id;
+
+  // Build document content for new signer
+  const roles = [role.role_name, ...consolidatedRoles.map(r => r.role_name)];
+
+  // Build merge variables
+  const baseMergeVariables: Record<string, string> = pkg.merge_variables
+    ? JSON.parse(pkg.merge_variables)
+    : {};
+
+  // Get jurisdiction addendum if applicable
+  if (pkg.jurisdiction) {
+    const addendum = await getJurisdictionAddendum(pkg.jurisdiction);
+    if (addendum) {
+      baseMergeVariables.jurisdictionAddendum = `<div class="jurisdiction-addendum">\n<h4>${addendum.jurisdiction_name} Legal Notice</h4>\n${addendum.addendum_html}\n</div>`;
+      baseMergeVariables.jurisdictionName = addendum.jurisdiction_name;
+      baseMergeVariables.jurisdictionCode = pkg.jurisdiction;
+    }
+  }
+
+  // Build signer-specific variables
+  const signerVariables: Record<string, string> = {
+    ...baseMergeVariables,
+    signerName: input.name,
+    signerEmail: input.email || '',
+    signerPhone: input.phone || '',
+    signerRoles: roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', '),
+    signerRolesList: roles.join(', '),
+  };
+
+  // Resolve document content
+  let documentContent = pkg.document_content || '';
+  for (const [key, value] of Object.entries(signerVariables)) {
+    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+    documentContent = documentContent.replace(placeholder, value || '');
+  }
+
+  // Calculate expiration
+  const expiresAt = pkg.expires_at ? new Date(pkg.expires_at) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // Create new signature request
+  const { request: newRequest, token: newToken } = await createRequest({
+    documentName: pkg.document_name,
+    documentContent,
+    signerName: input.name,
+    signerEmail: input.email,
+    signerPhone: input.phone,
+    verificationMethod,
+    expiresAt,
+    externalRef: pkg.external_ref || undefined,
+    externalType: pkg.external_type || undefined,
+    jurisdiction: pkg.jurisdiction || undefined,
+    callbackUrl: pkg.callback_url || undefined,
+  });
+
+  // Update request with package info
+  sqliteRun(
+    `UPDATE signature_requests SET package_id = ?, roles_display = ? WHERE id = ?`,
+    [pkg.id, roles.join(', '), newRequest.id]
+  );
+
+  // Update the role with new signer info
+  sqliteRun(
+    `UPDATE signing_roles
+     SET signer_name = ?, signer_email = ?, signer_phone = ?, date_of_birth = ?,
+         request_id = ?, status = 'sent'
+     WHERE id = ?`,
+    [
+      input.name,
+      input.email || null,
+      input.phone || null,
+      input.dateOfBirth || null,
+      newRequest.id,
+      roleId,
+    ]
+  );
+
+  // Update any other roles in the same consolidated group
+  for (const consolidatedRole of consolidatedRoles) {
+    sqliteRun(
+      `UPDATE signing_roles
+       SET signer_name = ?, signer_email = ?, signer_phone = ?, request_id = ?, status = 'sent'
+       WHERE id = ?`,
+      [
+        input.name,
+        input.email || null,
+        input.phone || null,
+        newRequest.id,
+        consolidatedRole.id,
+      ]
+    );
+  }
+
+  // Cancel the old request if it exists
+  if (oldRequestId) {
+    sqliteRun(
+      `UPDATE signature_requests SET status = 'cancelled' WHERE id = ?`,
+      [oldRequestId]
+    );
+  }
+
+  const signUrl = `${config.baseUrl}/sign/${newToken.token}`;
+
+  return {
+    roleId,
+    roleName: role.role_name,
+    previousSigner,
+    newSigner: input.name,
+    signUrl,
+  };
 }
