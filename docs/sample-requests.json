@@ -1,0 +1,302 @@
+{
+  "_description": "Sample API requests for SignatureHub Multi-Party Signing Packages",
+  "_note": "Replace placeholder values with your actual data",
+
+  "multiPartyPackages": {
+    "_description": "Examples for creating multi-party signing packages",
+
+    "basicPackage": {
+      "_description": "Minimal package with two signers",
+      "endpoint": "POST /api/packages",
+      "request": {
+        "documentName": "Basic Waiver",
+        "documentContent": "<h2>Waiver Agreement</h2><p>I, {{signerName}}, agree to the terms.</p>",
+        "signers": [
+          {
+            "role": "participant",
+            "name": "John Athlete",
+            "email": "john@example.com"
+          },
+          {
+            "role": "guardian",
+            "name": "Jane Parent",
+            "email": "jane@example.com"
+          }
+        ],
+        "verificationMethod": "email"
+      }
+    },
+
+    "packageWithTemplate": {
+      "_description": "Package using a pre-defined template with merge variables",
+      "endpoint": "POST /api/packages",
+      "request": {
+        "templateCode": "TEAM_WAIVER_2024",
+        "jurisdiction": "US-VA",
+        "eventDate": "2024-06-15",
+        "mergeVariables": {
+          "organizationName": "Sports Academy",
+          "eventName": "Summer Training Camp",
+          "teamName": "Junior Eagles",
+          "coachName": "Mike Wilson"
+        },
+        "signers": [
+          {
+            "role": "participant",
+            "name": "Tommy Smith",
+            "email": "parent@example.com",
+            "dateOfBirth": "2012-05-15",
+            "isMinor": true
+          },
+          {
+            "role": "guardian",
+            "name": "John Smith",
+            "email": "parent@example.com",
+            "dateOfBirth": "1980-03-20"
+          },
+          {
+            "role": "coach",
+            "name": "Mike Wilson",
+            "email": "coach@example.com",
+            "dateOfBirth": "1985-01-10"
+          }
+        ],
+        "verificationMethod": "email",
+        "externalRef": "registration-2024-001",
+        "callbackUrl": "https://your-server.com/webhooks/signatures"
+      }
+    },
+
+    "consolidatedSigners": {
+      "_description": "Example showing role consolidation - same email gets one signing link",
+      "endpoint": "POST /api/packages",
+      "request": {
+        "documentName": "Family Waiver",
+        "documentContent": "<h2>{{documentName}}</h2><p>Participant: {{signerName}}</p><p>Roles: {{signerRoles}}</p>",
+        "signers": [
+          {
+            "role": "participant",
+            "name": "Child One",
+            "email": "family@example.com",
+            "dateOfBirth": "2015-01-01",
+            "isMinor": true
+          },
+          {
+            "role": "participant",
+            "name": "Child Two",
+            "email": "family@example.com",
+            "dateOfBirth": "2017-06-15",
+            "isMinor": true
+          },
+          {
+            "role": "guardian",
+            "name": "Parent Smith",
+            "email": "family@example.com",
+            "dateOfBirth": "1985-03-20"
+          }
+        ],
+        "verificationMethod": "email"
+      },
+      "_expectedResult": "One signature request created for family@example.com with roles: participant (x2), guardian"
+    },
+
+    "fullFeaturedPackage": {
+      "_description": "Complete package with all optional fields",
+      "endpoint": "POST /api/packages",
+      "request": {
+        "templateCode": "LIABILITY_WAIVER_2024",
+        "documentName": "Sports Camp Registration",
+        "jurisdiction": "US-CA",
+        "eventDate": "2024-07-01",
+        "mergeVariables": {
+          "organizationName": "California Sports Academy",
+          "eventName": "Summer Soccer Camp 2024",
+          "facilityName": "Golden Gate Sports Complex",
+          "emergencyPhone": "(555) 123-4567",
+          "startDate": "July 1, 2024",
+          "endDate": "July 15, 2024"
+        },
+        "signers": [
+          {
+            "role": "participant",
+            "name": "Alex Johnson",
+            "email": "johnson.family@example.com",
+            "phone": "+15551234567",
+            "dateOfBirth": "2011-08-22",
+            "isMinor": true
+          },
+          {
+            "role": "guardian",
+            "name": "Sarah Johnson",
+            "email": "johnson.family@example.com",
+            "phone": "+15551234567",
+            "dateOfBirth": "1982-04-15"
+          },
+          {
+            "role": "trainer",
+            "name": "David Coach",
+            "email": "david@sportsacademy.com",
+            "phone": "+15559876543",
+            "dateOfBirth": "1990-11-30"
+          },
+          {
+            "role": "witness",
+            "name": "Admin Staff",
+            "email": "admin@sportsacademy.com",
+            "dateOfBirth": "1988-02-14"
+          }
+        ],
+        "verificationMethod": "email",
+        "externalRef": "camp-reg-2024-0542",
+        "externalType": "camp_registration",
+        "callbackUrl": "https://api.sportsacademy.com/webhooks/signatures",
+        "expiresAt": "2024-06-25T23:59:59.000Z",
+        "createdBy": "admin@sportsacademy.com"
+      }
+    }
+  },
+
+  "templates": {
+    "_description": "Examples for creating templates",
+
+    "basicTemplate": {
+      "endpoint": "POST /api/templates",
+      "request": {
+        "templateCode": "SIMPLE_WAIVER_2024",
+        "name": "Simple Liability Waiver",
+        "description": "Basic liability waiver for general use",
+        "htmlContent": "<h2>Liability Waiver</h2><p>I, <strong>{{signerName}}</strong>, hereby acknowledge and agree to the following terms and conditions.</p><p>Date: {{currentDate}}</p>"
+      }
+    },
+
+    "templateWithJurisdiction": {
+      "endpoint": "POST /api/templates",
+      "request": {
+        "templateCode": "TEAM_WAIVER_2024",
+        "name": "Team Registration Waiver",
+        "description": "Comprehensive waiver for team sports registration",
+        "jurisdiction": "US-VA",
+        "htmlContent": "<div class=\"waiver-document\"><h1>{{organizationName}}</h1><h2>{{documentName}}</h2><div class=\"event-info\"><p><strong>Event:</strong> {{eventName}}</p><p><strong>Event Date:</strong> {{eventDate}}</p></div><div class=\"participant-info\"><h3>Participant Information</h3><p><strong>Name:</strong> {{signerName}}</p><p><strong>Role(s):</strong> {{signerRoles}}</p></div><div class=\"terms\"><h3>Terms and Conditions</h3><p>By signing below, I acknowledge that I have read, understand, and agree to be bound by this waiver agreement.</p><ol><li>I understand that participation involves inherent risks.</li><li>I agree to follow all safety guidelines and instructions.</li><li>I release {{organizationName}} from any liability.</li></ol></div><div class=\"jurisdiction-addendum\">{{jurisdictionAddendum}}</div><div class=\"signature-section\"><p>Signature Date: {{currentDate}}</p></div></div>"
+      }
+    }
+  },
+
+  "jurisdictions": {
+    "_description": "Examples for creating jurisdiction addendums",
+
+    "virginiaAddendum": {
+      "endpoint": "POST /api/jurisdictions",
+      "request": {
+        "jurisdictionCode": "US-VA",
+        "jurisdictionName": "Virginia",
+        "addendumHtml": "<div class=\"jurisdiction-notice\"><h4>Virginia-Specific Terms</h4><p>This agreement is governed by the laws of the Commonwealth of Virginia. In accordance with Virginia Code Section 8.01-227.8, this waiver is enforceable to release liability for ordinary negligence.</p></div>"
+      }
+    },
+
+    "californiaAddendum": {
+      "endpoint": "POST /api/jurisdictions",
+      "request": {
+        "jurisdictionCode": "US-CA",
+        "jurisdictionName": "California",
+        "addendumHtml": "<div class=\"jurisdiction-notice\"><h4>California-Specific Terms</h4><p>This agreement is governed by the laws of the State of California. In accordance with California Civil Code Section 1542, I expressly waive any rights or benefits under that section which provides: \"A general release does not extend to claims that the creditor or releasing party does not know or suspect to exist in his or her favor at the time of executing the release and that, if known by him or her, would have materially affected his or her settlement with the debtor or released party.\"</p></div>"
+      }
+    }
+  },
+
+  "singleSignerRequests": {
+    "_description": "Examples for single-signer signature requests",
+
+    "basicRequest": {
+      "endpoint": "POST /api/requests",
+      "request": {
+        "documentName": "Service Agreement",
+        "signerName": "John Doe",
+        "signerEmail": "john.doe@example.com",
+        "verificationMethod": "email",
+        "documentContent": "<h2>Service Agreement</h2><p>This agreement is between {{signerName}} and Example Corp.</p>"
+      }
+    },
+
+    "requestWithTemplate": {
+      "endpoint": "POST /api/requests",
+      "request": {
+        "documentName": "Individual Waiver",
+        "signerName": "Jane Smith",
+        "signerEmail": "jane.smith@example.com",
+        "signerPhone": "+15551234567",
+        "verificationMethod": "email",
+        "waiverTemplateCode": "SIMPLE_WAIVER_2024",
+        "mergeVariables": {
+          "organizationName": "Fitness Center"
+        },
+        "jurisdiction": "US-VA",
+        "externalRef": "member-2024-0123",
+        "callbackUrl": "https://your-server.com/webhooks"
+      }
+    }
+  },
+
+  "webhookPayloads": {
+    "_description": "Example webhook payloads you'll receive",
+
+    "signatureCompleted": {
+      "event": "signature.completed",
+      "requestId": "req_abc123def456",
+      "referenceCode": "SIG-ABC123",
+      "externalRef": "your-system-id",
+      "signedAt": "2024-01-15T15:30:00.000Z",
+      "signatureType": "typed",
+      "signerName": "John Doe"
+    },
+
+    "signerCompleted": {
+      "event": "signer.completed",
+      "packageId": "pkg_abc123def456",
+      "packageCode": "PKG-ABC123",
+      "externalRef": "registration-2024-001",
+      "jurisdiction": "US-VA",
+      "documentName": "Team Registration Waiver",
+      "completedSigners": 1,
+      "totalSigners": 3,
+      "signer": {
+        "name": "John Smith",
+        "email": "john@example.com",
+        "roles": ["participant", "guardian"],
+        "signedAt": "2024-01-15T15:30:00.000Z"
+      }
+    },
+
+    "packageCompleted": {
+      "event": "package.completed",
+      "packageId": "pkg_abc123def456",
+      "packageCode": "PKG-ABC123",
+      "externalRef": "registration-2024-001",
+      "jurisdiction": "US-VA",
+      "documentName": "Team Registration Waiver",
+      "completedSigners": 3,
+      "totalSigners": 3,
+      "signer": {
+        "name": "Mike Wilson",
+        "email": "coach@example.com",
+        "roles": ["coach"],
+        "signedAt": "2024-01-15T16:45:00.000Z"
+      }
+    }
+  },
+
+  "curlExamples": {
+    "_description": "Copy-paste curl commands for testing",
+
+    "createPackage": "curl -X POST https://your-domain.com/api/packages -H 'Content-Type: application/json' -H 'X-API-Key: your-api-key' -d '{\"documentName\":\"Test Waiver\",\"documentContent\":\"<p>Test content for {{signerName}}</p>\",\"signers\":[{\"role\":\"participant\",\"name\":\"Test User\",\"email\":\"test@example.com\"}],\"verificationMethod\":\"email\"}'",
+
+    "getPackageStatus": "curl -X GET https://your-domain.com/api/packages/PKG-ABC123 -H 'X-API-Key: your-api-key'",
+
+    "listPackages": "curl -X GET 'https://your-domain.com/api/packages?status=pending&limit=10' -H 'X-API-Key: your-api-key'",
+
+    "createTemplate": "curl -X POST https://your-domain.com/api/templates -H 'Content-Type: application/json' -H 'X-API-Key: your-api-key' -d '{\"templateCode\":\"TEST_TEMPLATE\",\"name\":\"Test Template\",\"htmlContent\":\"<p>Hello {{signerName}}</p>\"}'",
+
+    "listJurisdictions": "curl -X GET https://your-domain.com/api/jurisdictions -H 'X-API-Key: your-api-key'",
+
+    "getRoleRequirements": "curl -X GET https://your-domain.com/api/roles/requirements -H 'X-API-Key: your-api-key'"
+  }
+}

@@ -230,12 +230,15 @@
       <div id="savedContext" class="saved-data">
         <span class="label">Last Request ID:</span> <span id="savedRequestId">-</span><br>
         <span class="label">Last Token:</span> <span id="savedToken">-</span><br>
-        <span class="label">Last Reference:</span> <span id="savedReference">-</span>
+        <span class="label">Last Reference:</span> <span id="savedReference">-</span><br>
+        <span class="label">Last Package ID:</span> <span id="savedPackageId">-</span><br>
+        <span class="label">Last Package Code:</span> <span id="savedPackageCode">-</span>
       </div>
     </div>
 
     <div class="tabs">
       <div class="tab active" data-panel="requests">Signature Requests</div>
+      <div class="tab" data-panel="packages">Multi-Party Packages</div>
       <div class="tab" data-panel="templates">Templates</div>
       <div class="tab" data-panel="signing">Signing Flow</div>
       <div class="tab" data-panel="fulltest">Full Test</div>
@@ -379,6 +382,176 @@
 
           <button class="btn-send" id="btn-cancelRequest">Cancel Request</button>
           <div id="response-cancelRequest" class="response-area" style="display:none;"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MULTI-PARTY PACKAGES PANEL -->
+    <div id="panel-packages" class="panel">
+      <div class="endpoint-grid">
+
+        <!-- Create Package -->
+        <div class="endpoint-card" style="grid-column: span 2;">
+          <h3><span class="method post">POST</span> Create Multi-Party Package</h3>
+          <div class="endpoint-path">/api/packages</div>
+          <p class="hint">Create a signing package for multiple signers with role consolidation</p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div class="form-row">
+                <label>Template Code (optional)</label>
+                <input type="text" id="cp-templateCode" placeholder="e.g., LIABILITY_WAIVER_2024">
+                <p class="hint">Use a pre-defined template. Leave empty for custom content.</p>
+              </div>
+              <div class="form-row">
+                <label>Document Name</label>
+                <input type="text" id="cp-documentName" value="Team Waiver Agreement">
+              </div>
+              <div class="form-row">
+                <label>Document Content (HTML, if no template)</label>
+                <textarea id="cp-documentContent" style="min-height: 100px;">&lt;h2&gt;{{documentName}}&lt;/h2&gt;
+&lt;p&gt;Event Date: {{eventDate}}&lt;/p&gt;
+&lt;p&gt;Participant: {{signerName}}&lt;/p&gt;
+&lt;p&gt;Signing as: {{signerRoles}}&lt;/p&gt;
+{{jurisdictionAddendum}}</textarea>
+              </div>
+              <div class="form-row">
+                <label>Jurisdiction</label>
+                <select id="cp-jurisdiction">
+                  <option value="">-- No jurisdiction --</option>
+                  <option value="US-VA">Virginia (US-VA)</option>
+                  <option value="US-CA">California (US-CA)</option>
+                  <option value="US-TX">Texas (US-TX)</option>
+                  <option value="US-NY">New York (US-NY)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Event Date</label>
+                <input type="date" id="cp-eventDate">
+                <p class="hint">Used for age validation (trainer/coach must be 18+ at event date)</p>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-row">
+                <label>Merge Variables (JSON)</label>
+                <textarea id="cp-mergeVariables" style="min-height: 80px;">{
+  "organizationName": "Sports Academy",
+  "eventName": "Summer Training Camp"
+}</textarea>
+              </div>
+              <div class="form-row">
+                <label>External Reference</label>
+                <input type="text" id="cp-externalRef" placeholder="your-system-id">
+              </div>
+              <div class="form-row">
+                <label>Verification Method</label>
+                <select id="cp-verificationMethod">
+                  <option value="email">Email</option>
+                  <option value="sms">SMS</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Callback URL</label>
+                <input type="url" id="cp-callbackUrl" placeholder="https://your-server.com/webhook">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 15px;">
+            <label>Signers (JSON Array) *</label>
+            <textarea id="cp-signers" style="min-height: 150px;">[
+  {
+    "role": "participant",
+    "name": "John Athlete",
+    "email": "john@example.com",
+    "dateOfBirth": "2010-05-15",
+    "isMinor": true
+  },
+  {
+    "role": "guardian",
+    "name": "Jane Parent",
+    "email": "jane@example.com",
+    "dateOfBirth": "1985-03-20"
+  },
+  {
+    "role": "coach",
+    "name": "Mike Coach",
+    "email": "mike@example.com",
+    "dateOfBirth": "1990-01-10"
+  }
+]</textarea>
+            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Signers with same email are consolidated.</p>
+          </div>
+
+          <button class="btn-send" id="btn-createPackage">Create Package</button>
+          <div id="response-createPackage" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- Get Package -->
+        <div class="endpoint-card">
+          <h3><span class="method get">GET</span> Get Package Status</h3>
+          <div class="endpoint-path">/api/packages/:id</div>
+
+          <div class="form-row">
+            <label>Package ID or Code *</label>
+            <input type="text" id="gp-id" placeholder="Enter package ID or code">
+            <button class="btn-quick use-saved" data-target="gp-id" data-field="packageId" style="margin-top:5px;">Use Saved</button>
+          </div>
+
+          <button class="btn-send" id="btn-getPackage">Get Package</button>
+          <div id="response-getPackage" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- List Packages -->
+        <div class="endpoint-card">
+          <h3><span class="method get">GET</span> List Packages</h3>
+          <div class="endpoint-path">/api/packages</div>
+
+          <div class="form-row">
+            <label>Status Filter</label>
+            <select id="lp-status">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="complete">Complete</option>
+              <option value="expired">Expired</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>External Reference</label>
+            <input type="text" id="lp-externalRef" placeholder="Filter by external ref">
+          </div>
+          <div class="form-row">
+            <label>Limit</label>
+            <input type="number" id="lp-limit" value="10">
+          </div>
+
+          <button class="btn-send" id="btn-listPackages">List Packages</button>
+          <div id="response-listPackages" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- Jurisdictions -->
+        <div class="endpoint-card">
+          <h3><span class="method get">GET</span> List Jurisdictions</h3>
+          <div class="endpoint-path">/api/jurisdictions</div>
+          <p class="hint">View available jurisdiction addendums</p>
+
+          <button class="btn-send" id="btn-listJurisdictions">List Jurisdictions</button>
+          <div id="response-listJurisdictions" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- Role Requirements -->
+        <div class="endpoint-card">
+          <h3><span class="method get">GET</span> Role Age Requirements</h3>
+          <div class="endpoint-path">/api/roles/requirements</div>
+          <p class="hint">View minimum age requirements for each role</p>
+
+          <button class="btn-send" id="btn-roleRequirements">Get Requirements</button>
+          <div id="response-roleRequirements" class="response-area" style="display:none;"></div>
         </div>
 
       </div>

@@ -6,7 +6,9 @@
   const savedContext = {
     requestId: localStorage.getItem('test_requestId') || '',
     token: localStorage.getItem('test_token') || '',
-    reference: localStorage.getItem('test_reference') || ''
+    reference: localStorage.getItem('test_reference') || '',
+    packageId: localStorage.getItem('test_packageId') || '',
+    packageCode: localStorage.getItem('test_packageCode') || ''
   };
 
   let fullTestToken = '';
@@ -21,6 +23,10 @@
     document.getElementById('savedRequestId').textContent = savedContext.requestId || '-';
     document.getElementById('savedToken').textContent = savedContext.token || '-';
     document.getElementById('savedReference').textContent = savedContext.reference || '-';
+    const pkgEl = document.getElementById('savedPackageId');
+    if (pkgEl) pkgEl.textContent = savedContext.packageId || '-';
+    const pkgCodeEl = document.getElementById('savedPackageCode');
+    if (pkgCodeEl) pkgCodeEl.textContent = savedContext.packageCode || '-';
   }
 
   function saveContext(key, value) {
@@ -141,6 +147,13 @@
     document.getElementById('btn-getTemplate').addEventListener('click', getTemplate);
     document.getElementById('btn-updateTemplate').addEventListener('click', updateTemplate);
     document.getElementById('btn-deleteTemplate').addEventListener('click', deleteTemplate);
+
+    // Packages
+    document.getElementById('btn-createPackage').addEventListener('click', createPackage);
+    document.getElementById('btn-getPackage').addEventListener('click', getPackage);
+    document.getElementById('btn-listPackages').addEventListener('click', listPackages);
+    document.getElementById('btn-listJurisdictions').addEventListener('click', listJurisdictions);
+    document.getElementById('btn-roleRequirements').addEventListener('click', getRoleRequirements);
 
     // Signing Flow
     document.getElementById('btn-getSigningData').addEventListener('click', getSigningData);
@@ -289,6 +302,112 @@
     const code = document.getElementById('dt-templateCode').value;
     const result = await apiCall('DELETE', '/api/templates/' + code);
     showResponse('deleteTemplate', result.status, result.data);
+  }
+
+  // === PACKAGES ===
+
+  async function createPackage() {
+    const btn = document.getElementById('btn-createPackage');
+
+    if (!getApiKey()) {
+      alert('Please enter your API key first');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    try {
+      // Parse signers JSON
+      let signers;
+      try {
+        signers = JSON.parse(document.getElementById('cp-signers').value);
+      } catch (e) {
+        alert('Invalid signers JSON: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Package';
+        return;
+      }
+
+      // Parse merge variables JSON
+      let mergeVariables;
+      const mergeVarsText = document.getElementById('cp-mergeVariables').value.trim();
+      if (mergeVarsText) {
+        try {
+          mergeVariables = JSON.parse(mergeVarsText);
+        } catch (e) {
+          alert('Invalid merge variables JSON: ' + e.message);
+          btn.disabled = false;
+          btn.textContent = 'Create Package';
+          return;
+        }
+      }
+
+      const body = {
+        templateCode: document.getElementById('cp-templateCode').value || undefined,
+        documentName: document.getElementById('cp-documentName').value || undefined,
+        documentContent: document.getElementById('cp-documentContent').value || undefined,
+        jurisdiction: document.getElementById('cp-jurisdiction').value || undefined,
+        eventDate: document.getElementById('cp-eventDate').value || undefined,
+        mergeVariables: mergeVariables,
+        externalRef: document.getElementById('cp-externalRef').value || undefined,
+        verificationMethod: document.getElementById('cp-verificationMethod').value,
+        callbackUrl: document.getElementById('cp-callbackUrl').value || undefined,
+        signers: signers
+      };
+
+      console.log('Creating package with:', body);
+      const result = await apiCall('POST', '/api/packages', body);
+      console.log('Result:', result);
+      showResponse('createPackage', result.status, result.data);
+
+      if (result.status === 201 && result.data.packageId) {
+        saveContext('packageId', result.data.packageId);
+        if (result.data.packageCode) {
+          saveContext('packageCode', result.data.packageCode);
+        }
+      }
+    } catch (err) {
+      console.error('Create package error:', err);
+      showResponse('createPackage', 0, { error: err.message });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create Package';
+    }
+  }
+
+  async function getPackage() {
+    const id = document.getElementById('gp-id').value;
+    if (!id) {
+      alert('Please enter a package ID or code');
+      return;
+    }
+    const result = await apiCall('GET', '/api/packages/' + id);
+    showResponse('getPackage', result.status, result.data);
+  }
+
+  async function listPackages() {
+    const params = new URLSearchParams();
+    const status = document.getElementById('lp-status').value;
+    const externalRef = document.getElementById('lp-externalRef').value;
+    const limit = document.getElementById('lp-limit').value;
+
+    if (status) params.append('status', status);
+    if (externalRef) params.append('externalRef', externalRef);
+    if (limit) params.append('limit', limit);
+
+    const result = await apiCall('GET', '/api/packages?' + params.toString());
+    showResponse('listPackages', result.status, result.data);
+  }
+
+  async function listJurisdictions() {
+    const result = await apiCall('GET', '/api/jurisdictions');
+    showResponse('listJurisdictions', result.status, result.data);
+  }
+
+  async function getRoleRequirements() {
+    const result = await apiCall('GET', '/api/roles/requirements');
+    showResponse('roleRequirements', result.status, result.data);
   }
 
   // === SIGNING FLOW ===
