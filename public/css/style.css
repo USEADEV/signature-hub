@@ -1,5 +1,40 @@
-/* USEA eSign - Clean, Professional Design */
+/* SignatureHub - Clean, Professional Design */
 /* Developed and designed by useventing.com */
+
+/* ======================== */
+/* Shared Navigation Bar    */
+/* ======================== */
+.top-nav {
+  background: #24292e;
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+}
+.top-nav a {
+  color: #fff;
+  margin-right: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.7;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.top-nav a:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+.top-nav a.active {
+  opacity: 1;
+}
+.top-nav .brand {
+  font-weight: 700;
+  font-size: 16px;
+  opacity: 1;
+  margin-right: 32px;
+}
 
 :root {
   --color-primary: #1a1a2e;

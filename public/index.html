@@ -249,29 +249,6 @@
       margin: 0;
     }
 
-    /* Nav links */
-    .nav-links {
-      display: flex;
-      justify-content: center;
-      gap: 32px;
-      padding: 20px;
-      background: white;
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm);
-      margin-bottom: 32px;
-    }
-
-    .nav-links a {
-      color: var(--color-text-light);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover {
-      color: var(--color-primary);
-    }
-
     /* Responsive */
     @media (max-width: 600px) {
       .hero { padding: 40px 24px; }
@@ -283,15 +260,15 @@
   </style>
 </head>
 <body>
-  <div class="guide-container">
-    <!-- Navigation -->
-    <nav class="nav-links">
-      <a href="/" style="color: var(--color-primary);">Home</a>
-      <a href="/demo.html">Demo</a>
-      <a href="/test.html">API Console</a>
-      <a href="/docs/API.md" target="_blank">API Docs</a>
-    </nav>
+  <nav class="top-nav">
+    <a href="/" class="brand">SignatureHub</a>
+    <a href="/" class="active">Guide</a>
+    <a href="/demo.html">Demo</a>
+    <a href="/test.html">API Console</a>
+    <a href="/docs/">API Docs</a>
+  </nav>
 
+  <div class="guide-container">
     <!-- Hero Section -->
     <div class="hero">
       <h1>SignatureHub</h1>
@@ -527,7 +504,7 @@ Body: {
       <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
         <a href="/demo.html" class="btn btn-primary">Try the Demo</a>
         <a href="/test.html" class="btn btn-secondary">API Console</a>
-        <a href="/docs/API.md" target="_blank" class="btn btn-secondary">Read the Docs</a>
+        <a href="/docs/" class="btn btn-secondary">Read the Docs</a>
       </div>
     </div>
 
