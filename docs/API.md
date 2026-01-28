@@ -246,6 +246,29 @@ In this example: John uses email, Mike uses SMS, Jane uses both.
 }
 ```
 
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| packageId | string | Unique package identifier |
+| packageCode | string | Human-readable package reference code |
+| status | string | Package status (initially "pending") |
+| documentName | string | Name of the document |
+| eventDate | string | Event date if provided |
+| totalSigners | number | Number of unique signers (after consolidation) |
+| signatureRequests | array | One entry per unique signer (see below) |
+| expiresAt | string | Expiration date (ISO 8601) |
+
+**signatureRequests[] Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| requestId | string | **Unique request ID** - use this to check individual signer status via `GET /api/requests/:id` |
+| signerName | string | Name of the signer |
+| roles | string[] | List of roles this signer is signing for |
+| signUrl | string | Unique signing URL to send to this signer |
+| isPackageAdmin | boolean | Whether this signer is the package admin |
+
 ### Role Consolidation
 
 When multiple signers share the same email address, they are automatically consolidated:
