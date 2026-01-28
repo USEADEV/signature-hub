@@ -3,946 +3,537 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>USEA eSign - Demo</title>
+  <title>SignatureHub - Getting Started Guide</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .demo-banner {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 15px;
+    /* Guide-specific styles */
+    .guide-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .hero {
       text-align: center;
-      margin: -30px -30px 30px -30px;
-      border-radius: 8px 8px 0 0;
+      padding: 60px 40px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      border-radius: var(--radius-lg);
+      margin-bottom: 40px;
     }
-    .demo-logo {
-      height: 50px;
-      margin-bottom: 10px;
+
+    .hero h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      font-weight: 700;
     }
-    .demo-banner h1 {
-      margin: 0 0 5px 0;
-      font-size: 1.5rem;
-    }
-    .demo-banner p {
-      margin: 0;
+
+    .hero p {
+      font-size: 1.2rem;
       opacity: 0.9;
-    }
-    .demo-form {
       max-width: 600px;
       margin: 0 auto;
     }
-    .form-group {
-      margin-bottom: 20px;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      color: #333;
-    }
-    .form-group input, .form-group textarea, .form-group select {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e1e4e8;
-      border-radius: 6px;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-      outline: none;
-      border-color: #007bff;
-    }
-    .form-group textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
-    .result-box {
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-      border-radius: 6px;
-      padding: 20px;
-      margin-top: 20px;
-    }
-    .result-box h3 {
-      margin: 0 0 10px 0;
-      color: #155724;
-    }
-    .result-box a {
-      color: #007bff;
-      word-break: break-all;
-    }
-    .hint-box {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      border-radius: 6px;
-      padding: 15px;
-      margin-top: 20px;
-    }
-    .hint-box h4 {
-      margin: 0 0 10px 0;
-      color: #856404;
-    }
-    .hint-box code {
-      background: #fff;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .feature {
-      text-align: center;
-      padding: 20px;
-      background: #f8f9fa;
-      border-radius: 8px;
-    }
-    .feature-icon {
-      font-size: 2rem;
-      margin-bottom: 10px;
-    }
-    .feature h3 {
-      margin: 0 0 5px 0;
-      font-size: 1rem;
-    }
-    .feature p {
-      margin: 0;
-      color: #666;
-      font-size: 0.9rem;
-    }
-    /* Tab styles */
-    .tabs {
+
+    .hero-actions {
+      margin-top: 32px;
       display: flex;
-      border-bottom: 2px solid #e1e4e8;
-      margin-bottom: 30px;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
-    .tab-btn {
-      padding: 15px 25px;
-      border: none;
-      background: none;
-      font-size: 1rem;
-      font-weight: 500;
-      color: #666;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
+
+    .hero-actions a {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      font-weight: 600;
       transition: all 0.2s;
     }
-    .tab-btn:hover {
-      color: #333;
-    }
-    .tab-btn.active {
-      color: #007bff;
-      border-bottom-color: #007bff;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    /* Signer list styles */
-    .signers-list {
-      margin-bottom: 20px;
-    }
-    .signer-item {
-      background: #f8f9fa;
-      border: 1px solid #e1e4e8;
-      border-radius: 6px;
-      padding: 15px;
-      margin-bottom: 10px;
-    }
-    .signer-item h4 {
-      margin: 0 0 10px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .signer-item .remove-signer {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .signer-fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .signer-fields input, .signer-fields select {
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    .add-signer-btn {
-      background: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-    }
-    .add-signer-btn:hover {
-      background: #218838;
-    }
-    /* Package result styles */
-    .package-result {
-      background: #e7f3ff;
-      border: 1px solid #b8daff;
-      border-radius: 6px;
-      padding: 20px;
-      margin-top: 20px;
-    }
-    .package-result h3 {
-      margin: 0 0 15px 0;
-      color: #004085;
-    }
-    .signer-urls {
-      margin-top: 15px;
-    }
-    .signer-url-item {
+
+    .btn-hero-primary {
       background: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      margin-bottom: 8px;
+      color: var(--color-primary);
     }
-    .signer-url-item strong {
-      display: block;
-      margin-bottom: 5px;
-    }
-    .signer-url-item .roles-badge {
-      display: inline-block;
-      background: #6c757d;
+
+    .btn-hero-secondary {
+      background: rgba(255,255,255,0.15);
       color: white;
-      padding: 2px 8px;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+    .btn-hero-secondary:hover { background: rgba(255,255,255,0.25); }
+
+    .section-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 40px;
+      margin-bottom: 32px;
+      border: 1px solid var(--color-border);
+    }
+
+    .section-card h2 {
+      font-size: 1.5rem;
+      color: var(--color-primary);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-card h2 .icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .section-card p {
+      color: var(--color-text);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    /* How it works */
+    .steps {
+      display: grid;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .step-number {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-content h3 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--color-primary);
+    }
+
+    .step-content p {
+      color: var(--color-text-light);
+      margin: 0;
+    }
+
+    /* Scenarios */
+    .scenario {
+      background: var(--color-background);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 20px;
+      border-left: 4px solid var(--color-success);
+    }
+
+    .scenario h3 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: var(--color-primary);
+    }
+
+    .scenario-label {
+      display: inline-block;
+      background: var(--color-success);
+      color: white;
+      padding: 4px 10px;
       border-radius: 12px;
       font-size: 0.75rem;
-      margin-left: 5px;
+      font-weight: 600;
+      margin-bottom: 12px;
     }
-    .signer-url-item a {
-      color: #007bff;
-      word-break: break-all;
-      font-size: 0.9rem;
+
+    .scenario ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--color-text-light);
     }
-    .form-row {
+
+    .scenario li {
+      margin-bottom: 8px;
+    }
+
+    /* Features grid */
+    .features-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
     }
-    .checkbox-group {
+
+    .feature-card {
+      background: var(--color-background);
+      padding: 24px;
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+
+    .feature-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: var(--color-primary);
+    }
+
+    .feature-card p {
+      color: var(--color-text-light);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* Code examples */
+    .code-block {
+      background: #1e1e2e;
+      border-radius: var(--radius-md);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    .code-block pre {
+      margin: 0;
+      color: #cdd6f4;
+      font-family: 'Fira Code', 'Monaco', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .code-block .comment { color: #6c7086; }
+    .code-block .string { color: #a6e3a1; }
+    .code-block .key { color: #89b4fa; }
+
+    /* FAQ */
+    .faq-item {
+      border-bottom: 1px solid var(--color-border);
+      padding: 20px 0;
+    }
+
+    .faq-item:last-child {
+      border-bottom: none;
+    }
+
+    .faq-item h3 {
+      font-size: 1rem;
+      color: var(--color-primary);
+      margin-bottom: 8px;
+    }
+
+    .faq-item p {
+      color: var(--color-text-light);
+      margin: 0;
+    }
+
+    /* Nav links */
+    .nav-links {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      justify-content: center;
+      gap: 32px;
+      padding: 20px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 32px;
     }
-    .checkbox-group input[type="checkbox"] {
-      width: auto;
+
+    .nav-links a {
+      color: var(--color-text-light);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--color-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero { padding: 40px 24px; }
+      .hero h1 { font-size: 1.8rem; }
+      .section-card { padding: 24px; }
+      .step { grid-template-columns: 1fr; gap: 12px; }
+      .step-number { width: 48px; height: 48px; font-size: 1.2rem; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <nav style="display: flex; justify-content: center; gap: 32px; padding: 16px; margin-bottom: 16px;">
-      <a href="/" style="color: #007bff; text-decoration: none; font-weight: 500;">Demo</a>
-      <a href="/guide.html" style="color: #666; text-decoration: none; font-weight: 500;">Guide</a>
-      <a href="/test.html" style="color: #666; text-decoration: none; font-weight: 500;">API Console</a>
+  <div class="guide-container">
+    <!-- Navigation -->
+    <nav class="nav-links">
+      <a href="/" style="color: var(--color-primary);">Home</a>
+      <a href="/demo.html">Demo</a>
+      <a href="/test.html">API Console</a>
+      <a href="/docs/API.md" target="_blank">API Docs</a>
     </nav>
-    <main>
-      <div class="demo-banner">
-        <img src="/images/usea-logo-white.svg" alt="USEA" class="demo-logo">
-        <h1>USEA eSign Demo</h1>
-        <p>Document signature application for ShowConnect</p>
+
+    <!-- Hero Section -->
+    <div class="hero">
+      <h1>SignatureHub</h1>
+      <p>A simple, secure way to collect electronic signatures. Perfect for waivers, agreements, and multi-party documents.</p>
+      <div class="hero-actions">
+        <a href="/demo.html" class="btn-hero-primary">Try the Demo</a>
+        <a href="/test.html" class="btn-hero-secondary">API Console</a>
       </div>
+    </div>
 
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="single">Single Signer</button>
-        <button class="tab-btn" data-tab="package">Multi-Party Package</button>
-        <button class="tab-btn" data-tab="templates">Templates</button>
-      </div>
+    <!-- What is SignatureHub -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #e0f2fe;">&#128221;</span> What is SignatureHub?</h2>
+      <p>SignatureHub is an electronic signature platform that makes it easy to collect legally-binding signatures from one or more people. Whether you need a single signature on a waiver or multiple signatures from parents, coaches, and participants - SignatureHub handles it all.</p>
+      <p>Each signer receives a unique, secure link. They verify their identity with a code sent to their email or phone, review the document, and sign by typing or drawing their signature. You get notified when everyone has signed.</p>
 
-      <!-- Single Signer Tab -->
-      <div id="tab-single" class="tab-content active">
-        <div class="demo-form">
-          <h2>Create Test Signature Request</h2>
-          <p>Fill in the form below to create a signature request and test the signing flow.</p>
-
-          <div class="form-group">
-            <label for="documentName">Document Name</label>
-            <input type="text" id="documentName" value="Entry Agreement 2024" placeholder="e.g., Entry Agreement 2024">
-          </div>
-
-          <div class="form-group">
-            <label for="signerName">Signer Name</label>
-            <input type="text" id="signerName" value="John Doe" placeholder="e.g., John Doe">
-          </div>
-
-          <div class="form-group">
-            <label for="signerEmail">Signer Email</label>
-            <input type="email" id="signerEmail" value="test@example.com" placeholder="e.g., test@example.com">
-          </div>
-
-          <div class="form-group">
-            <label for="signerPhone">Signer Phone (for SMS verification)</label>
-            <input type="tel" id="signerPhone" placeholder="e.g., +15551234567">
-          </div>
-
-          <div class="form-group">
-            <label for="verificationMethod">Verification Method</label>
-            <select id="verificationMethod">
-              <option value="email">Email only</option>
-              <option value="sms">SMS only</option>
-              <option value="both">Both (Email and SMS)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="apiKey">API Key</label>
-            <input type="password" id="apiKey" placeholder="Enter your API key">
-          </div>
-
-          <div class="form-group">
-            <label for="documentContent">Document Content (HTML)</label>
-            <textarea id="documentContent" placeholder="Optional: HTML content to display"><h3>Entry Agreement</h3><p>By signing this document, I agree to the following terms and conditions for participating in the horse show event:</p><ul><li>I understand and accept all risks associated with equestrian activities</li><li>I agree to follow all safety rules and guidelines</li><li>I confirm that all information provided is accurate</li></ul><p>This agreement is binding upon signature.</p></textarea>
-          </div>
-
-          <button id="createBtn" class="btn btn-primary" style="width: 100%;">Create Signature Request</button>
-
-          <div id="result" class="result-box hidden">
-            <h3>Signature Request Created!</h3>
-            <p><strong>Sign URL:</strong></p>
-            <p><a id="signUrl" href="#" target="_blank"></a></p>
-            <p style="margin-top: 15px;">
-              <a id="openSignUrl" href="#" target="_blank" class="btn btn-primary">Open Signing Page</a>
-            </p>
-          </div>
-
-          <div class="hint-box">
-            <h4>Testing Info</h4>
-            <p>Enter your API key to test live email/SMS sending. A verification code will be sent to the email or phone number provided.</p>
-            <p style="margin-top: 10px;"><strong>Note:</strong> Phone numbers must be in E.164 format (e.g., <code>+15551234567</code>)</p>
-          </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="icon">&#128274;</div>
+          <h3>Identity Verification</h3>
+          <p>6-digit codes via email or SMS ensure signers are who they say they are</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#9997;</div>
+          <h3>Type or Draw</h3>
+          <p>Signers can type their name or draw their signature on any device</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128101;</div>
+          <h3>Multi-Party Signing</h3>
+          <p>Collect signatures from multiple people with different roles</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128241;</div>
+          <h3>Works Everywhere</h3>
+          <p>Mobile-friendly design works on phones, tablets, and desktops</p>
         </div>
       </div>
+    </div>
 
-      <!-- Multi-Party Package Tab -->
-      <div id="tab-package" class="tab-content">
-        <div class="demo-form">
-          <h2>Create Multi-Party Signing Package</h2>
-          <p>Create a package where multiple people can sign the same document with different roles.</p>
+    <!-- How It Works -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #fef3c7;">&#9889;</span> How It Works</h2>
+      <p>The signing process is designed to be quick and painless for signers while maintaining security and legal validity.</p>
 
-          <div class="form-group">
-            <label for="pkgDocumentName">Document Name</label>
-            <input type="text" id="pkgDocumentName" value="Entry Agreement - Spring Horse Trials 2024" placeholder="e.g., Entry Agreement - Event Name">
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Create a Request</h3>
+            <p>Use the API or demo interface to create a signature request. Specify the document, signer details, and how they should verify their identity (email, SMS, or both).</p>
           </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="pkgEventDate">Event Date (for age validation)</label>
-              <input type="date" id="pkgEventDate" value="2024-03-15">
-            </div>
-            <div class="form-group">
-              <label for="pkgJurisdiction">Jurisdiction (optional)</label>
-              <input type="text" id="pkgJurisdiction" placeholder="e.g., US-VA">
-            </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Share the Signing Link</h3>
+            <p>Each signer receives a unique, secure URL. You can email this directly, embed it in your system, or share it however works best for your workflow.</p>
           </div>
-
-          <div class="form-group">
-            <label for="pkgExternalRef">External Reference (optional)</label>
-            <input type="text" id="pkgExternalRef" placeholder="e.g., entry-12345">
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Signer Reviews Document</h3>
+            <p>The signer opens their link and sees the document they're being asked to sign. They can read through it before proceeding.</p>
           </div>
-
-          <div class="form-group">
-            <label for="pkgApiKey">API Key</label>
-            <input type="password" id="pkgApiKey" placeholder="Enter your API key">
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Verify Identity</h3>
+            <p>The signer requests a 6-digit verification code. It's sent to their email or phone instantly. They enter the code to prove they have access to that contact method.</p>
           </div>
-
-          <div class="form-group">
-            <label for="pkgTemplateCode">Template (optional - use instead of document content)</label>
-            <select id="pkgTemplateCode">
-              <option value="">-- No template (use document content below) --</option>
-            </select>
-            <small style="color: #666; display: block; margin-top: 5px;">Select a template or create one in the Templates tab. Template content will replace the document content below.</small>
+        </div>
+        <div class="step">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3>Sign the Document</h3>
+            <p>The signer types their full legal name or draws their signature, checks the consent box, and clicks "Sign Document". Done!</p>
           </div>
-
-          <div class="form-group">
-            <label for="pkgDocumentContent">Document Content (HTML with merge variables)</label>
-            <textarea id="pkgDocumentContent" placeholder="Use {{variable}} for merge variables"><h3>Entry Agreement - {{eventName}}</h3>
-<p><strong>Event Date:</strong> {{eventDate}}</p>
-<p><strong>Horse:</strong> {{horseName}}</p>
-<p><strong>Rider:</strong> {{riderName}}</p>
-<p><strong>Competition Level:</strong> {{competitionLevel}}</p>
-
-<p>By signing this document, I agree to the following terms and conditions for participating in this equestrian event:</p>
-
-<ul>
-  <li>I understand and accept all risks associated with equestrian activities</li>
-  <li>I agree to follow all safety rules and guidelines established by the organizers</li>
-  <li>I confirm that the horse named above is fit to compete</li>
-  <li>I confirm that all information provided is accurate and complete</li>
-</ul>
-
-<p>This agreement is legally binding upon all signatories.</p></textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="pkgMergeVariables">Merge Variables (JSON)</label>
-            <textarea id="pkgMergeVariables" style="min-height: 80px;">{
-  "eventName": "Spring Horse Trials 2024",
-  "eventDate": "March 15-17, 2024",
-  "horseName": "Big Horse",
-  "riderName": "Emily Pile",
-  "competitionLevel": "Training Level"
-}</textarea>
-          </div>
-
-          <h3 style="margin-top: 30px;">Signers</h3>
-          <p style="color: #666; margin-bottom: 15px;">Add signers with their roles. Signers with the same email will be consolidated into a single signature request with multiple roles.</p>
-
-          <div id="signersList" class="signers-list">
-            <!-- Signer items will be added here -->
-          </div>
-
-          <button type="button" id="addSignerBtn" class="add-signer-btn">+ Add Signer</button>
-
-          <button id="createPackageBtn" class="btn btn-primary" style="width: 100%;">Create Signing Package</button>
-
-          <div id="packageResult" class="package-result hidden">
-            <h3>Signing Package Created!</h3>
-            <p><strong>Package Code:</strong> <span id="pkgCode"></span></p>
-            <p><strong>Status:</strong> <span id="pkgStatus"></span></p>
-            <div class="signer-urls" id="signerUrls">
-              <!-- Signer URLs will be added here -->
-            </div>
-          </div>
-
-          <div class="hint-box">
-            <h4>Multi-Party Signing</h4>
-            <p>Signers with the same email address are automatically consolidated - they receive one signature request for all their roles.</p>
-            <p style="margin-top: 10px;"><strong>Age Requirements:</strong> Trainer, Coach, and Guardian must be 18+ at the event date. Rider and Owner can be any age.</p>
-            <p style="margin-top: 10px;"><strong>Date of Birth:</strong> Required for roles with minimum age requirements (Trainer, Coach, Guardian).</p>
-            <p style="margin-top: 10px;"><strong>Merge Variables:</strong> Use <code>{{variableName}}</code> in document content to insert dynamic values.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <h3>Get Notified</h3>
+            <p>If you set up a webhook, you'll receive a notification the moment the document is signed. You can also check the status via the API anytime.</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Templates Tab -->
-      <div id="tab-templates" class="tab-content">
-        <div class="demo-form">
-          <h2>Manage Templates</h2>
-          <p>Create reusable document templates with merge variables.</p>
+    <!-- Common Scenarios -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #dcfce7;">&#127919;</span> Common Scenarios</h2>
+      <p>Here are some real-world examples of how SignatureHub is used:</p>
 
-          <div class="form-group">
-            <label for="tplApiKey">API Key</label>
-            <input type="password" id="tplApiKey" placeholder="Enter your API key">
-          </div>
-
-          <button id="loadTemplatesBtn" class="btn btn-secondary" style="margin-bottom: 20px;">Load Existing Templates</button>
-
-          <div id="templatesList" class="templates-list" style="margin-bottom: 30px; display: none;">
-            <h3>Existing Templates</h3>
-            <div id="templatesContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e1e4e8; border-radius: 6px; padding: 10px;">
-              <p style="color: #666;">Click "Load Existing Templates" to see available templates.</p>
-            </div>
-          </div>
-
-          <h3>Create New Template</h3>
-
-          <div class="form-group">
-            <label for="tplCode">Template Code *</label>
-            <input type="text" id="tplCode" placeholder="e.g., entry-waiver-2024 (unique identifier)">
-          </div>
-
-          <div class="form-group">
-            <label for="tplName">Template Name *</label>
-            <input type="text" id="tplName" placeholder="e.g., Entry Waiver 2024">
-          </div>
-
-          <div class="form-group">
-            <label for="tplDescription">Description</label>
-            <input type="text" id="tplDescription" placeholder="Brief description of this template">
-          </div>
-
-          <div class="form-group">
-            <label for="tplJurisdiction">Jurisdiction (optional)</label>
-            <input type="text" id="tplJurisdiction" placeholder="e.g., US-VA">
-          </div>
-
-          <div class="form-group">
-            <label for="tplHtmlContent">HTML Content *</label>
-            <textarea id="tplHtmlContent" style="min-height: 200px;" placeholder="HTML template with merge variables"><h1>{{eventName}} - Entry Agreement</h1>
-
-<p><strong>Event Date:</strong> {{eventDate}}</p>
-<p><strong>Participant:</strong> {{signerName}}</p>
-<p><strong>Role(s):</strong> {{signerRoles}}</p>
-
-<h2>Release and Waiver of Liability</h2>
-
-<p>I, <strong>{{signerName}}</strong>, in consideration of being permitted to participate in {{eventName}}, hereby agree to the following:</p>
-
-<ol>
-  <li>I understand the inherent risks of equestrian activities and voluntarily assume all such risks.</li>
-  <li>I release and hold harmless the event organizers from any and all liability.</li>
-  <li>I confirm that all information provided is accurate and complete.</li>
-  <li>I agree to follow all rules and safety guidelines.</li>
-</ol>
-
-<p>This agreement is legally binding upon signature.</p>
-
-{{jurisdictionAddendum}}</textarea>
-          </div>
-
-          <button id="createTemplateBtn" class="btn btn-primary" style="width: 100%;">Create Template</button>
-
-          <div id="templateResult" class="result-box hidden">
-            <h3>Template Created!</h3>
-            <p><strong>Template Code:</strong> <span id="createdTplCode"></span></p>
-            <p><strong>Name:</strong> <span id="createdTplName"></span></p>
-          </div>
-
-          <div class="hint-box">
-            <h4>Available Merge Variables</h4>
-            <p><strong>Package variables:</strong> <code>{{eventName}}</code>, <code>{{eventDate}}</code>, <code>{{horseName}}</code>, or any custom variable you pass in mergeVariables</p>
-            <p style="margin-top: 10px;"><strong>Auto-generated signer variables:</strong></p>
-            <ul style="margin: 5px 0 0 20px;">
-              <li><code>{{signerName}}</code> - Current signer's name</li>
-              <li><code>{{signerEmail}}</code> - Current signer's email</li>
-              <li><code>{{signerRoles}}</code> - Roles (e.g., "Rider, Owner")</li>
-              <li><code>{{signerAge}}</code> - Age at event date</li>
-              <li><code>{{signerIsMinor}}</code> - "Yes" or "No"</li>
-            </ul>
-            <p style="margin-top: 10px;"><strong>Jurisdiction:</strong> <code>{{jurisdictionAddendum}}</code> - Inserts jurisdiction-specific legal text</p>
-          </div>
-        </div>
+      <div class="scenario">
+        <span class="scenario-label">Simple</span>
+        <h3>Single Signer Waiver</h3>
+        <p>An adult signing a liability waiver for themselves.</p>
+        <ol>
+          <li>Create a signature request with their name and email</li>
+          <li>They receive the signing link</li>
+          <li>They verify with a code sent to their email</li>
+          <li>They sign and you're done!</li>
+        </ol>
       </div>
 
-      <div class="features">
-        <div class="feature">
-          <div class="feature-icon">&#128274;</div>
-          <h3>2FA Verification</h3>
-          <p>Email or SMS verification codes</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">&#9997;</div>
-          <h3>Dual Signing</h3>
-          <p>Type or draw your signature</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">&#128241;</div>
-          <h3>Mobile Ready</h3>
-          <p>Works on any device</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">&#128203;</div>
-          <h3>Audit Trail</h3>
-          <p>Full logging and compliance</p>
-        </div>
+      <div class="scenario">
+        <span class="scenario-label">Family</span>
+        <h3>Minor with Parent/Guardian</h3>
+        <p>A child participates in an activity, and their parent must sign on their behalf.</p>
+        <ol>
+          <li>Create a package with two signers: the child (as "participant") and parent (as "guardian")</li>
+          <li>The parent receives a signing link</li>
+          <li>The signing page shows they're signing for both roles</li>
+          <li>One signature covers both the participant and guardian roles</li>
+        </ol>
       </div>
-    </main>
 
-    <footer>
-      <p>&copy; 2026 USEA eSign. Secure document signing for ShowConnect.</p>
-      <p class="attribution">Developed and designed by <a href="https://useventing.com" target="_blank">useventing.com</a></p>
+      <div class="scenario">
+        <span class="scenario-label">Team</span>
+        <h3>Sports Team Registration</h3>
+        <p>A coach registers a team with multiple participants, each needing their own waiver.</p>
+        <ol>
+          <li>Create a package with all participants and the coach</li>
+          <li>Each person receives their own unique signing link</li>
+          <li>The coach is designated as "package admin" and can replace signers if needed</li>
+          <li>Everyone signs independently; you get notified as each person completes</li>
+          <li>When all have signed, the package is complete</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Flexible</span>
+        <h3>Same Person, Multiple Roles</h3>
+        <p>One person is both the rider and owner in an equestrian event.</p>
+        <ol>
+          <li>Add them as a signer twice with different roles but the <strong>same email</strong></li>
+          <li>SignatureHub automatically consolidates them - one signing link, one verification</li>
+          <li>The signing page shows "Signing as: Rider, Owner"</li>
+          <li>One signature covers all their roles</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Recovery</span>
+        <h3>Replacing a Signer</h3>
+        <p>A guardian can't sign and needs to be replaced with another family member.</p>
+        <ol>
+          <li>The original guardian receives their link but can't/won't sign</li>
+          <li>The package admin calls the "Replace Signer" API</li>
+          <li>The old link is instantly invalidated</li>
+          <li>A new link is generated for the replacement signer</li>
+          <li>The new person completes the signing</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Quick Start API Example -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #ede9fe;">&#128187;</span> Quick Start: API Example</h2>
+      <p>Here's how to create a simple signature request using the API:</p>
+
+      <div class="code-block">
+        <pre><span class="comment">// Create a signature request</span>
+POST /api/requests
+Headers: {
+  <span class="key">"Content-Type"</span>: <span class="string">"application/json"</span>,
+  <span class="key">"X-API-Key"</span>: <span class="string">"your-api-key"</span>
+}
+
+Body: {
+  <span class="key">"documentName"</span>: <span class="string">"Liability Waiver"</span>,
+  <span class="key">"signerName"</span>: <span class="string">"John Smith"</span>,
+  <span class="key">"signerEmail"</span>: <span class="string">"john@example.com"</span>,
+  <span class="key">"documentContent"</span>: <span class="string">"&lt;h2&gt;Waiver&lt;/h2&gt;&lt;p&gt;Terms...&lt;/p&gt;"</span>
+}
+
+<span class="comment">// Response</span>
+{
+  <span class="key">"referenceCode"</span>: <span class="string">"SIG-ABC123"</span>,
+  <span class="key">"signUrl"</span>: <span class="string">"https://your-domain.com/sign/abc123..."</span>,
+  <span class="key">"status"</span>: <span class="string">"pending"</span>
+}</pre>
+      </div>
+
+      <p>Send the <code>signUrl</code> to your signer. When they complete signing, you'll receive a webhook (if configured) or can check the status via the API.</p>
+
+      <p style="margin-top: 20px;"><strong>Want to try it?</strong> Use the <a href="/test.html">API Console</a> to experiment with the API, or try the <a href="/demo.html">Demo page</a> for a simpler interface.</p>
+    </div>
+
+    <!-- Key Concepts -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #fce7f3;">&#128218;</span> Key Concepts</h2>
+
+      <div class="faq-item">
+        <h3>Single Requests vs. Packages</h3>
+        <p><strong>Single Request:</strong> One document, one signer. Use <code>/api/requests</code>.<br>
+        <strong>Package:</strong> One document, multiple signers with roles. Use <code>/api/packages</code>. Packages support role consolidation and signer replacement.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Role Consolidation</h3>
+        <p>When multiple signers in a package share the same email address, they're automatically consolidated. They receive one signing link and sign once for all their roles. Great for parents signing as both themselves and for their children.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Package Admin</h3>
+        <p>One signer can be designated as the "package admin" (set <code>isPackageAdmin: true</code>). They can replace signers who refuse or are unable to sign. If not specified, the first signer becomes the admin.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Verification Methods</h3>
+        <p>Signers verify their identity by entering a 6-digit code. You can offer email verification, SMS verification, or both. If you provide both an email and phone for a signer, they can choose which method to use.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Templates</h3>
+        <p>Create reusable document templates with merge variables like <code>{{signerName}}</code>, <code>{{eventDate}}</code>, etc. Templates keep your documents consistent and save time.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Webhooks</h3>
+        <p>Set a <code>callbackUrl</code> when creating a request or package. We'll POST to that URL when signatures are completed, so you can update your system in real-time.</p>
+      </div>
+    </div>
+
+    <!-- Get Started -->
+    <div class="section-card" style="text-align: center; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+      <h2 style="justify-content: center;"><span class="icon" style="background: #0ea5e9;">&#128640;</span> Ready to Get Started?</h2>
+      <p style="max-width: 500px; margin: 0 auto 24px;">Try the demo to see how signing works, or dive into the API console to start integrating.</p>
+      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="/demo.html" class="btn btn-primary">Try the Demo</a>
+        <a href="/test.html" class="btn btn-secondary">API Console</a>
+        <a href="/docs/API.md" target="_blank" class="btn btn-secondary">Read the Docs</a>
+      </div>
+    </div>
+
+    <footer style="text-align: center; padding: 40px 0; color: var(--color-text-light);">
+      <p>&copy; 2026 SignatureHub. Secure document signing.</p>
     </footer>
   </div>
-
-  <script>
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        this.classList.add('active');
-        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
-      });
-    });
-
-    // Single signer form
-    document.getElementById('createBtn').addEventListener('click', async function() {
-      const btn = this;
-      btn.disabled = true;
-      btn.textContent = 'Creating...';
-
-      try {
-        const apiKey = document.getElementById('apiKey').value;
-        if (!apiKey) {
-          alert('Please enter your API key');
-          btn.disabled = false;
-          btn.textContent = 'Create Signature Request';
-          return;
-        }
-
-        const verificationMethod = document.getElementById('verificationMethod').value;
-        const signerPhone = document.getElementById('signerPhone').value;
-
-        if ((verificationMethod === 'sms' || verificationMethod === 'both') && !signerPhone) {
-          alert('Phone number is required for SMS verification');
-          btn.disabled = false;
-          btn.textContent = 'Create Signature Request';
-          return;
-        }
-
-        const response = await fetch('/api/requests', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          body: JSON.stringify({
-            documentName: document.getElementById('documentName').value,
-            signerName: document.getElementById('signerName').value,
-            signerEmail: document.getElementById('signerEmail').value,
-            signerPhone: signerPhone || undefined,
-            documentContent: document.getElementById('documentContent').value,
-            verificationMethod: verificationMethod
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          // Replace backend BASE_URL with actual browser origin
-          const signPath = new URL(data.signUrl).pathname;
-          const correctUrl = window.location.origin + signPath;
-
-          document.getElementById('signUrl').href = correctUrl;
-          document.getElementById('signUrl').textContent = correctUrl;
-          document.getElementById('openSignUrl').href = correctUrl;
-          document.getElementById('result').classList.remove('hidden');
-        } else {
-          alert('Error: ' + (data.error || 'Failed to create request'));
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Signature Request';
-      }
-    });
-
-    // Package form - Signer management
-    let signerCount = 0;
-
-    function addSigner(defaults = {}) {
-      signerCount++;
-      const signerId = signerCount;
-      const signerHtml = `
-        <div class="signer-item" data-signer-id="${signerId}">
-          <h4>
-            <span>Signer #${signerId}</span>
-            <button type="button" class="remove-signer" onclick="removeSigner(${signerId})">Remove</button>
-          </h4>
-          <div class="signer-fields">
-            <input type="text" placeholder="Name *" class="signer-name" value="${defaults.name || ''}">
-            <select class="signer-role">
-              <option value="rider" ${defaults.role === 'rider' ? 'selected' : ''}>Rider</option>
-              <option value="owner" ${defaults.role === 'owner' ? 'selected' : ''}>Owner</option>
-              <option value="trainer" ${defaults.role === 'trainer' ? 'selected' : ''}>Trainer</option>
-              <option value="coach" ${defaults.role === 'coach' ? 'selected' : ''}>Coach</option>
-              <option value="guardian" ${defaults.role === 'guardian' ? 'selected' : ''}>Parent/Guardian</option>
-              <option value="other" ${defaults.role === 'other' ? 'selected' : ''}>Other</option>
-            </select>
-            <input type="email" placeholder="Email *" class="signer-email" value="${defaults.email || ''}">
-            <input type="date" placeholder="Date of Birth" class="signer-dob" value="${defaults.dateOfBirth || ''}" title="Required for Trainer, Coach, Guardian roles">
-          </div>
-          <div class="checkbox-group" style="margin-top: 10px;">
-            <input type="checkbox" class="signer-minor" id="minor-${signerId}" ${defaults.isMinor ? 'checked' : ''}>
-            <label for="minor-${signerId}">Is a minor (under 18)</label>
-          </div>
-        </div>
-      `;
-      document.getElementById('signersList').insertAdjacentHTML('beforeend', signerHtml);
-    }
-
-    function removeSigner(id) {
-      const item = document.querySelector(`.signer-item[data-signer-id="${id}"]`);
-      if (item) item.remove();
-    }
-
-    function getSigners() {
-      const signers = [];
-      document.querySelectorAll('.signer-item').forEach(item => {
-        const name = item.querySelector('.signer-name').value.trim();
-        const email = item.querySelector('.signer-email').value.trim();
-        const dateOfBirth = item.querySelector('.signer-dob').value;
-        const role = item.querySelector('.signer-role').value;
-        const isMinor = item.querySelector('.signer-minor').checked;
-
-        if (name && email) {
-          signers.push({
-            name,
-            email,
-            dateOfBirth: dateOfBirth || undefined,
-            role,
-            isMinor
-          });
-        }
-      });
-      return signers;
-    }
-
-    // Add default signers
-    document.getElementById('addSignerBtn').addEventListener('click', () => addSigner());
-
-    // Add example signers on load
-    addSigner({ name: 'Emily Pile', email: 'emily@example.com', role: 'rider', dateOfBirth: '2010-05-15', isMinor: true });
-    addSigner({ name: 'Sarah Pile', email: 'sarah@example.com', role: 'guardian', dateOfBirth: '1980-03-22' });
-    addSigner({ name: 'John Smith', email: 'john@example.com', role: 'trainer', dateOfBirth: '1985-08-10' });
-    addSigner({ name: 'John Smith', email: 'john@example.com', role: 'owner' });
-
-    // Create package
-    document.getElementById('createPackageBtn').addEventListener('click', async function() {
-      const btn = this;
-      btn.disabled = true;
-      btn.textContent = 'Creating Package...';
-
-      try {
-        const apiKey = document.getElementById('pkgApiKey').value;
-        if (!apiKey) {
-          alert('Please enter your API key');
-          btn.disabled = false;
-          btn.textContent = 'Create Signing Package';
-          return;
-        }
-
-        const signers = getSigners();
-        if (signers.length === 0) {
-          alert('Please add at least one signer with name and email');
-          btn.disabled = false;
-          btn.textContent = 'Create Signing Package';
-          return;
-        }
-
-        let mergeVariables = {};
-        try {
-          const mergeVarsText = document.getElementById('pkgMergeVariables').value.trim();
-          if (mergeVarsText) {
-            mergeVariables = JSON.parse(mergeVarsText);
-          }
-        } catch (e) {
-          alert('Invalid JSON in merge variables');
-          btn.disabled = false;
-          btn.textContent = 'Create Signing Package';
-          return;
-        }
-
-        const response = await fetch('/api/packages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          body: JSON.stringify({
-            templateCode: document.getElementById('pkgTemplateCode').value || undefined,
-            documentName: document.getElementById('pkgDocumentName').value,
-            documentContent: document.getElementById('pkgDocumentContent').value || undefined,
-            eventDate: document.getElementById('pkgEventDate').value || undefined,
-            externalRef: document.getElementById('pkgExternalRef').value || undefined,
-            jurisdiction: document.getElementById('pkgJurisdiction').value || undefined,
-            mergeVariables: mergeVariables,
-            signers: signers
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          document.getElementById('pkgCode').textContent = data.packageCode;
-          document.getElementById('pkgStatus').textContent = data.status;
-
-          // Build signer URLs list
-          const urlsContainer = document.getElementById('signerUrls');
-          urlsContainer.innerHTML = '<h4 style="margin: 15px 0 10px 0;">Signing URLs:</h4>';
-
-          data.signatureRequests.forEach(req => {
-            const signPath = new URL(req.signUrl).pathname;
-            const correctUrl = window.location.origin + signPath;
-            const rolesText = req.roles.join(', ');
-
-            urlsContainer.innerHTML += `
-              <div class="signer-url-item">
-                <strong>${req.signerName} <span class="roles-badge">${rolesText}</span></strong>
-                <a href="${correctUrl}" target="_blank">${correctUrl}</a>
-              </div>
-            `;
-          });
-
-          document.getElementById('packageResult').classList.remove('hidden');
-        } else {
-          alert('Error: ' + (data.error || 'Failed to create package'));
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Signing Package';
-      }
-    });
-
-    // ============================================
-    // TEMPLATES TAB
-    // ============================================
-
-    // Load templates into dropdown and list
-    async function loadTemplates(apiKey, showList = false) {
-      try {
-        const response = await fetch('/api/templates', {
-          headers: { 'X-API-Key': apiKey }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to load templates');
-        }
-
-        const templates = await response.json();
-
-        // Populate package form dropdown
-        const dropdown = document.getElementById('pkgTemplateCode');
-        dropdown.innerHTML = '<option value="">-- No template (use document content below) --</option>';
-        templates.forEach(tpl => {
-          dropdown.innerHTML += `<option value="${tpl.template_code}">${tpl.name} (${tpl.template_code})</option>`;
-        });
-
-        // Show templates list if requested
-        if (showList) {
-          const container = document.getElementById('templatesContainer');
-          if (templates.length === 0) {
-            container.innerHTML = '<p style="color: #666;">No templates found. Create one below!</p>';
-          } else {
-            container.innerHTML = templates.map(tpl => `
-              <div style="padding: 10px; border-bottom: 1px solid #e1e4e8; cursor: pointer;" onclick="selectTemplate('${tpl.template_code}')">
-                <strong>${tpl.name}</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem;">${tpl.template_code}</code>
-                ${tpl.description ? `<p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${tpl.description}</p>` : ''}
-              </div>
-            `).join('');
-          }
-          document.getElementById('templatesList').style.display = 'block';
-        }
-
-        return templates;
-      } catch (error) {
-        console.error('Error loading templates:', error);
-        return [];
-      }
-    }
-
-    // Select a template from the list
-    function selectTemplate(templateCode) {
-      // Switch to package tab and select the template
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelector('[data-tab="package"]').classList.add('active');
-      document.getElementById('tab-package').classList.add('active');
-      document.getElementById('pkgTemplateCode').value = templateCode;
-    }
-
-    // Load templates button
-    document.getElementById('loadTemplatesBtn').addEventListener('click', async function() {
-      const apiKey = document.getElementById('tplApiKey').value;
-      if (!apiKey) {
-        alert('Please enter your API key');
-        return;
-      }
-
-      this.disabled = true;
-      this.textContent = 'Loading...';
-
-      await loadTemplates(apiKey, true);
-
-      this.disabled = false;
-      this.textContent = 'Load Existing Templates';
-    });
-
-    // Create template button
-    document.getElementById('createTemplateBtn').addEventListener('click', async function() {
-      const btn = this;
-      btn.disabled = true;
-      btn.textContent = 'Creating Template...';
-
-      try {
-        const apiKey = document.getElementById('tplApiKey').value;
-        if (!apiKey) {
-          alert('Please enter your API key');
-          btn.disabled = false;
-          btn.textContent = 'Create Template';
-          return;
-        }
-
-        const templateCode = document.getElementById('tplCode').value.trim();
-        const name = document.getElementById('tplName').value.trim();
-        const htmlContent = document.getElementById('tplHtmlContent').value.trim();
-
-        if (!templateCode || !name || !htmlContent) {
-          alert('Template Code, Name, and HTML Content are required');
-          btn.disabled = false;
-          btn.textContent = 'Create Template';
-          return;
-        }
-
-        const response = await fetch('/api/templates', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          body: JSON.stringify({
-            templateCode: templateCode,
-            name: name,
-            description: document.getElementById('tplDescription').value.trim() || undefined,
-            jurisdiction: document.getElementById('tplJurisdiction').value.trim() || undefined,
-            htmlContent: htmlContent
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          document.getElementById('createdTplCode').textContent = data.template_code;
-          document.getElementById('createdTplName').textContent = data.name;
-          document.getElementById('templateResult').classList.remove('hidden');
-
-          // Reload templates to update dropdown
-          await loadTemplates(apiKey, true);
-
-          // Clear form
-          document.getElementById('tplCode').value = '';
-          document.getElementById('tplName').value = '';
-          document.getElementById('tplDescription').value = '';
-        } else {
-          alert('Error: ' + (data.error || 'Failed to create template'));
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Template';
-      }
-    });
-
-    // Sync API keys between all tabs
-    function syncApiKeys(sourceId) {
-      const value = document.getElementById(sourceId).value;
-      ['apiKey', 'pkgApiKey', 'tplApiKey'].forEach(id => {
-        if (id !== sourceId) {
-          document.getElementById(id).value = value;
-        }
-      });
-      // Auto-load templates when API key is entered
-      if (value && sourceId !== 'tplApiKey') {
-        loadTemplates(value, false);
-      }
-    }
-
-    document.getElementById('apiKey').addEventListener('input', () => syncApiKeys('apiKey'));
-    document.getElementById('pkgApiKey').addEventListener('input', () => syncApiKeys('pkgApiKey'));
-    document.getElementById('tplApiKey').addEventListener('input', () => syncApiKeys('tplApiKey'));
-  </script>
 </body>
 </html>
