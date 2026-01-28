@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignatureHub API Documentation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      line-height: 1.6;
+      color: #24292e;
+      background: #fff;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Typography */
+    h1 { font-size: 2em; border-bottom: 2px solid #e1e4e8; padding-bottom: 0.3em; margin-bottom: 16px; margin-top: 24px; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; margin-top: 32px; margin-bottom: 16px; }
+    h3 { font-size: 1.25em; margin-top: 24px; margin-bottom: 12px; }
+    h4 { font-size: 1em; margin-top: 20px; margin-bottom: 8px; }
+    p { margin-bottom: 12px; }
+    ul, ol { margin-bottom: 12px; padding-left: 2em; }
+    li { margin-bottom: 4px; }
+    hr { border: none; border-top: 1px solid #e1e4e8; margin: 24px 0; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { font-weight: 600; }
+
+    /* Code blocks */
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      border: none;
+      font-size: inherit;
+    }
+    code {
+      background: #f0f2f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 85%;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #dfe2e5;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f6f8fa;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: #fafbfc;
+    }
+
+    /* Blockquotes (notes) */
+    blockquote {
+      border-left: 4px solid #0366d6;
+      padding: 8px 16px;
+      margin-bottom: 16px;
+      background: #f1f8ff;
+      color: #24292e;
+    }
+    blockquote p { margin-bottom: 0; }
+    blockquote strong { color: #0366d6; }
+
+    /* Navigation */
+    .top-nav {
+      background: #24292e;
+      padding: 12px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .top-nav a {
+      color: #fff;
+      margin-right: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0.85;
+    }
+    .top-nav a:hover {
+      opacity: 1;
+      text-decoration: none;
+    }
+    .top-nav .brand {
+      font-weight: 700;
+      font-size: 16px;
+      opacity: 1;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #586069;
+      font-size: 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container { padding: 20px 16px; }
+      table { font-size: 12px; }
+      th, td { padding: 6px 8px; }
+      pre { font-size: 12px; padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="brand">SignatureHub</a>
+    <a href="/">Guide</a>
+    <a href="/demo.html">Demo</a>
+    <a href="/docs/">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div id="content" class="loading">Loading API documentation...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    async function loadDocs() {
+      try {
+        const response = await fetch('/docs/API.md');
+        if (!response.ok) throw new Error('Failed to load documentation');
+        const markdown = await response.text();
+        document.getElementById('content').innerHTML = marked.parse(markdown);
+        document.getElementById('content').classList.remove('loading');
+
+        // Handle anchor links from URL hash
+        if (window.location.hash) {
+          const target = document.querySelector(window.location.hash);
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch (err) {
+        document.getElementById('content').innerHTML =
+          '<p style="color: #cb2431;">Failed to load documentation. <a href="/docs/API.md">View raw markdown</a></p>';
+      }
+    }
+    loadDocs();
+  </script>
+</body>
+</html>
