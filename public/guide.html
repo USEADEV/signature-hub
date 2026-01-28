@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignatureHub - Getting Started Guide</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Guide-specific styles */
+    .guide-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 60px 40px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      border-radius: var(--radius-lg);
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .hero-actions {
+      margin-top: 32px;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-actions a {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-hero-primary {
+      background: white;
+      color: var(--color-primary);
+    }
+
+    .btn-hero-secondary {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+    .btn-hero-secondary:hover { background: rgba(255,255,255,0.25); }
+
+    .section-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 40px;
+      margin-bottom: 32px;
+      border: 1px solid var(--color-border);
+    }
+
+    .section-card h2 {
+      font-size: 1.5rem;
+      color: var(--color-primary);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-card h2 .icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .section-card p {
+      color: var(--color-text);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    /* How it works */
+    .steps {
+      display: grid;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .step-number {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-content h3 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--color-primary);
+    }
+
+    .step-content p {
+      color: var(--color-text-light);
+      margin: 0;
+    }
+
+    /* Scenarios */
+    .scenario {
+      background: var(--color-background);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 20px;
+      border-left: 4px solid var(--color-success);
+    }
+
+    .scenario h3 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: var(--color-primary);
+    }
+
+    .scenario-label {
+      display: inline-block;
+      background: var(--color-success);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .scenario ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--color-text-light);
+    }
+
+    .scenario li {
+      margin-bottom: 8px;
+    }
+
+    /* Features grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .feature-card {
+      background: var(--color-background);
+      padding: 24px;
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+
+    .feature-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: var(--color-primary);
+    }
+
+    .feature-card p {
+      color: var(--color-text-light);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* Code examples */
+    .code-block {
+      background: #1e1e2e;
+      border-radius: var(--radius-md);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    .code-block pre {
+      margin: 0;
+      color: #cdd6f4;
+      font-family: 'Fira Code', 'Monaco', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .code-block .comment { color: #6c7086; }
+    .code-block .string { color: #a6e3a1; }
+    .code-block .key { color: #89b4fa; }
+
+    /* FAQ */
+    .faq-item {
+      border-bottom: 1px solid var(--color-border);
+      padding: 20px 0;
+    }
+
+    .faq-item:last-child {
+      border-bottom: none;
+    }
+
+    .faq-item h3 {
+      font-size: 1rem;
+      color: var(--color-primary);
+      margin-bottom: 8px;
+    }
+
+    .faq-item p {
+      color: var(--color-text-light);
+      margin: 0;
+    }
+
+    /* Nav links */
+    .nav-links {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      padding: 20px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 32px;
+    }
+
+    .nav-links a {
+      color: var(--color-text-light);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--color-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero { padding: 40px 24px; }
+      .hero h1 { font-size: 1.8rem; }
+      .section-card { padding: 24px; }
+      .step { grid-template-columns: 1fr; gap: 12px; }
+      .step-number { width: 48px; height: 48px; font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="guide-container">
+    <!-- Navigation -->
+    <nav class="nav-links">
+      <a href="/">Demo</a>
+      <a href="/guide.html" style="color: var(--color-primary);">Guide</a>
+      <a href="/test.html">API Console</a>
+      <a href="/docs/API.md" target="_blank">API Docs</a>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero">
+      <h1>SignatureHub</h1>
+      <p>A simple, secure way to collect electronic signatures. Perfect for waivers, agreements, and multi-party documents.</p>
+      <div class="hero-actions">
+        <a href="/" class="btn-hero-primary">Try the Demo</a>
+        <a href="/test.html" class="btn-hero-secondary">API Console</a>
+      </div>
+    </div>
+
+    <!-- What is SignatureHub -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #e0f2fe;">&#128221;</span> What is SignatureHub?</h2>
+      <p>SignatureHub is an electronic signature platform that makes it easy to collect legally-binding signatures from one or more people. Whether you need a single signature on a waiver or multiple signatures from parents, coaches, and participants - SignatureHub handles it all.</p>
+      <p>Each signer receives a unique, secure link. They verify their identity with a code sent to their email or phone, review the document, and sign by typing or drawing their signature. You get notified when everyone has signed.</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="icon">&#128274;</div>
+          <h3>Identity Verification</h3>
+          <p>6-digit codes via email or SMS ensure signers are who they say they are</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#9997;</div>
+          <h3>Type or Draw</h3>
+          <p>Signers can type their name or draw their signature on any device</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128101;</div>
+          <h3>Multi-Party Signing</h3>
+          <p>Collect signatures from multiple people with different roles</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">&#128241;</div>
+          <h3>Works Everywhere</h3>
+          <p>Mobile-friendly design works on phones, tablets, and desktops</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #fef3c7;">&#9889;</span> How It Works</h2>
+      <p>The signing process is designed to be quick and painless for signers while maintaining security and legal validity.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Create a Request</h3>
+            <p>Use the API or demo interface to create a signature request. Specify the document, signer details, and how they should verify their identity (email, SMS, or both).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Share the Signing Link</h3>
+            <p>Each signer receives a unique, secure URL. You can email this directly, embed it in your system, or share it however works best for your workflow.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Signer Reviews Document</h3>
+            <p>The signer opens their link and sees the document they're being asked to sign. They can read through it before proceeding.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Verify Identity</h3>
+            <p>The signer requests a 6-digit verification code. It's sent to their email or phone instantly. They enter the code to prove they have access to that contact method.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3>Sign the Document</h3>
+            <p>The signer types their full legal name or draws their signature, checks the consent box, and clicks "Sign Document". Done!</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <h3>Get Notified</h3>
+            <p>If you set up a webhook, you'll receive a notification the moment the document is signed. You can also check the status via the API anytime.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Common Scenarios -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #dcfce7;">&#127919;</span> Common Scenarios</h2>
+      <p>Here are some real-world examples of how SignatureHub is used:</p>
+
+      <div class="scenario">
+        <span class="scenario-label">Simple</span>
+        <h3>Single Signer Waiver</h3>
+        <p>An adult signing a liability waiver for themselves.</p>
+        <ol>
+          <li>Create a signature request with their name and email</li>
+          <li>They receive the signing link</li>
+          <li>They verify with a code sent to their email</li>
+          <li>They sign and you're done!</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Family</span>
+        <h3>Minor with Parent/Guardian</h3>
+        <p>A child participates in an activity, and their parent must sign on their behalf.</p>
+        <ol>
+          <li>Create a package with two signers: the child (as "participant") and parent (as "guardian")</li>
+          <li>The parent receives a signing link</li>
+          <li>The signing page shows they're signing for both roles</li>
+          <li>One signature covers both the participant and guardian roles</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Team</span>
+        <h3>Sports Team Registration</h3>
+        <p>A coach registers a team with multiple participants, each needing their own waiver.</p>
+        <ol>
+          <li>Create a package with all participants and the coach</li>
+          <li>Each person receives their own unique signing link</li>
+          <li>The coach is designated as "package admin" and can replace signers if needed</li>
+          <li>Everyone signs independently; you get notified as each person completes</li>
+          <li>When all have signed, the package is complete</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Flexible</span>
+        <h3>Same Person, Multiple Roles</h3>
+        <p>One person is both the rider and owner in an equestrian event.</p>
+        <ol>
+          <li>Add them as a signer twice with different roles but the <strong>same email</strong></li>
+          <li>SignatureHub automatically consolidates them - one signing link, one verification</li>
+          <li>The signing page shows "Signing as: Rider, Owner"</li>
+          <li>One signature covers all their roles</li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <span class="scenario-label">Recovery</span>
+        <h3>Replacing a Signer</h3>
+        <p>A guardian can't sign and needs to be replaced with another family member.</p>
+        <ol>
+          <li>The original guardian receives their link but can't/won't sign</li>
+          <li>The package admin calls the "Replace Signer" API</li>
+          <li>The old link is instantly invalidated</li>
+          <li>A new link is generated for the replacement signer</li>
+          <li>The new person completes the signing</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Quick Start API Example -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #ede9fe;">&#128187;</span> Quick Start: API Example</h2>
+      <p>Here's how to create a simple signature request using the API:</p>
+
+      <div class="code-block">
+        <pre><span class="comment">// Create a signature request</span>
+POST /api/requests
+Headers: {
+  <span class="key">"Content-Type"</span>: <span class="string">"application/json"</span>,
+  <span class="key">"X-API-Key"</span>: <span class="string">"your-api-key"</span>
+}
+
+Body: {
+  <span class="key">"documentName"</span>: <span class="string">"Liability Waiver"</span>,
+  <span class="key">"signerName"</span>: <span class="string">"John Smith"</span>,
+  <span class="key">"signerEmail"</span>: <span class="string">"john@example.com"</span>,
+  <span class="key">"documentContent"</span>: <span class="string">"&lt;h2&gt;Waiver&lt;/h2&gt;&lt;p&gt;Terms...&lt;/p&gt;"</span>
+}
+
+<span class="comment">// Response</span>
+{
+  <span class="key">"referenceCode"</span>: <span class="string">"SIG-ABC123"</span>,
+  <span class="key">"signUrl"</span>: <span class="string">"https://your-domain.com/sign/abc123..."</span>,
+  <span class="key">"status"</span>: <span class="string">"pending"</span>
+}</pre>
+      </div>
+
+      <p>Send the <code>signUrl</code> to your signer. When they complete signing, you'll receive a webhook (if configured) or can check the status via the API.</p>
+
+      <p style="margin-top: 20px;"><strong>Want to try it?</strong> Use the <a href="/test.html">API Console</a> to experiment with the API, or try the <a href="/">Demo page</a> for a simpler interface.</p>
+    </div>
+
+    <!-- Key Concepts -->
+    <div class="section-card">
+      <h2><span class="icon" style="background: #fce7f3;">&#128218;</span> Key Concepts</h2>
+
+      <div class="faq-item">
+        <h3>Single Requests vs. Packages</h3>
+        <p><strong>Single Request:</strong> One document, one signer. Use <code>/api/requests</code>.<br>
+        <strong>Package:</strong> One document, multiple signers with roles. Use <code>/api/packages</code>. Packages support role consolidation and signer replacement.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Role Consolidation</h3>
+        <p>When multiple signers in a package share the same email address, they're automatically consolidated. They receive one signing link and sign once for all their roles. Great for parents signing as both themselves and for their children.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Package Admin</h3>
+        <p>One signer can be designated as the "package admin" (set <code>isPackageAdmin: true</code>). They can replace signers who refuse or are unable to sign. If not specified, the first signer becomes the admin.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Verification Methods</h3>
+        <p>Signers verify their identity by entering a 6-digit code. You can offer email verification, SMS verification, or both. If you provide both an email and phone for a signer, they can choose which method to use.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Templates</h3>
+        <p>Create reusable document templates with merge variables like <code>{{signerName}}</code>, <code>{{eventDate}}</code>, etc. Templates keep your documents consistent and save time.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Webhooks</h3>
+        <p>Set a <code>callbackUrl</code> when creating a request or package. We'll POST to that URL when signatures are completed, so you can update your system in real-time.</p>
+      </div>
+    </div>
+
+    <!-- Get Started -->
+    <div class="section-card" style="text-align: center; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+      <h2 style="justify-content: center;"><span class="icon" style="background: #0ea5e9;">&#128640;</span> Ready to Get Started?</h2>
+      <p style="max-width: 500px; margin: 0 auto 24px;">Try the demo to see how signing works, or dive into the API console to start integrating.</p>
+      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="/" class="btn btn-primary">Try the Demo</a>
+        <a href="/test.html" class="btn btn-secondary">API Console</a>
+        <a href="/docs/API.md" target="_blank" class="btn btn-secondary">Read the Docs</a>
+      </div>
+    </div>
+
+    <footer style="text-align: center; padding: 40px 0; color: var(--color-text-light);">
+      <p>&copy; 2026 SignatureHub. Secure document signing.</p>
+    </footer>
+  </div>
+</body>
+</html>

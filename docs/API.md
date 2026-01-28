@@ -8,6 +8,10 @@ SignatureHub provides a comprehensive API for electronic signature collection wi
 - Waiver templates with merge variables
 - Jurisdiction-specific addendums
 - Age validation for role-based requirements
+- Package admin designation for signer replacement
+- Real-time webhooks for status updates
+
+**Getting Started:** See the [Interactive Guide](/guide.html) for a walkthrough with common scenarios.
 
 ## Authentication
 
@@ -532,9 +536,22 @@ All errors follow this format:
 | 401 | Unauthorized (missing API key) |
 | 403 | Forbidden (invalid API key) |
 | 404 | Not Found |
-| 409 | Conflict (e.g., duplicate template code) |
+| 409 | Conflict (e.g., already signed, cancelled, duplicate template) |
+| 410 | Gone (expired or no longer available) |
 | 429 | Too Many Requests (rate limited) |
 | 500 | Internal Server Error |
+
+### Signing Page Status Codes
+
+When a signer accesses their signing URL, the frontend receives these status codes:
+
+| Code | Status | Description |
+|------|--------|-------------|
+| 200 | Active | Request is valid and ready for signing |
+| 409 | Signed | Document has already been signed |
+| 409 | Cancelled | Request was cancelled by the sender |
+| 410 | Expired | Request has expired |
+| 410 | Not Found | Invalid or unknown signing token |
 
 ---
 
