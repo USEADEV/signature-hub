@@ -27,6 +27,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/docs', express.static(path.join(__dirname, '../docs'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.md')) {
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    }
+  }
+}));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
