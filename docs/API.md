@@ -11,7 +11,7 @@ SignatureHub provides a comprehensive API for electronic signature collection wi
 - Package admin designation for signer replacement
 - Real-time webhooks for status updates
 
-**Getting Started:** See the [Interactive Guide](/guide.html) for a walkthrough with common scenarios.
+**Getting Started:** See the [Interactive Guide](/) for a walkthrough with common scenarios.
 
 ## Authentication
 
@@ -290,7 +290,10 @@ Returns detailed status including all signers and their completion status.
     {
       "name": "John Smith Sr",
       "email": "parent@example.com",
-      "roles": ["participant", "guardian"],
+      "roles": [
+        { "roleId": "role_abc1", "roleName": "participant" },
+        { "roleId": "role_abc2", "roleName": "guardian" }
+      ],
       "signUrl": "https://your-domain.com/sign/token456",
       "requestId": "req_def456",
       "status": "signed",
@@ -299,7 +302,9 @@ Returns detailed status including all signers and their completion status.
     {
       "name": "Mike Wilson",
       "email": "coach@example.com",
-      "roles": ["coach"],
+      "roles": [
+        { "roleId": "role_abc3", "roleName": "coach" }
+      ],
       "signUrl": "https://your-domain.com/sign/token789",
       "requestId": "req_ghi789",
       "status": "pending",
@@ -308,6 +313,8 @@ Returns detailed status including all signers and their completion status.
   ]
 }
 ```
+
+**Note:** The `roles` array in the status response includes `roleId` for each role, which is needed when using the [Replace Signer](#replace-signer) endpoint.
 
 ### Package Status Values
 
@@ -554,6 +561,272 @@ When a signer accesses their signing URL, the frontend receives these status cod
 | 409 | Cancelled | Request was cancelled by the sender |
 | 410 | Expired | Request has expired |
 | 410 | Not Found | Invalid or unknown signing token |
+
+---
+
+## Complete Example: Multi-Party Signing Package
+
+This end-to-end example shows how to create a signing package for an equestrian event with a rider, owner, trainer, and guardian (parent of a minor rider). It covers the full lifecycle from setup to completion.
+
+### Step 1: Create a Template
+
+```
+POST /api/templates
+X-API-Key: your-api-key
+Content-Type: application/json
+```
+
+```json
+{
+  "templateCode": "ENTRY_AGREEMENT_2024",
+  "name": "Event Entry Agreement",
+  "description": "Standard entry agreement for equestrian competitions",
+  "htmlContent": "<h2>{{documentName}}</h2><p><strong>Event:</strong> {{eventName}}</p><p><strong>Event Date:</strong> {{eventDate}}</p><p><strong>Horse:</strong> {{horseName}}</p><p><strong>Rider:</strong> {{riderName}}</p><p><strong>Competition Level:</strong> {{competitionLevel}}</p><h3>Terms and Conditions</h3><p>I, {{signerName}}, signing as <strong>{{signerRoles}}</strong>, hereby agree to the following:</p><ul><li>I understand and accept all risks associated with equestrian activities</li><li>I agree to follow all safety rules and guidelines established by the organizers</li><li>I confirm that all information provided is accurate and complete</li><li>I acknowledge that this agreement is legally binding</li></ul>{{jurisdictionAddendum}}<p><em>Signed on {{currentDate}}</em></p>",
+  "jurisdiction": "US-VA"
+}
+```
+
+### Step 2: Create a Jurisdiction Addendum (Optional)
+
+```
+POST /api/jurisdictions
+X-API-Key: your-api-key
+Content-Type: application/json
+```
+
+```json
+{
+  "jurisdictionCode": "US-VA",
+  "jurisdictionName": "Virginia",
+  "addendumHtml": "<h4>Virginia Equine Activity Liability Act</h4><p>Under Virginia Code § 3.2-6202, an equine activity sponsor is not liable for injury or death of a participant resulting from the inherent risks of equine activities.</p>"
+}
+```
+
+### Step 3: Create the Signing Package
+
+This example has 4 signers with consolidation and age validation:
+- **Emily (rider, age 15)** - minor participant
+- **Sarah (owner)** - horse owner, same email as Emily's parent
+- **Sarah (guardian)** - Emily's mother, consolidated with owner role
+- **David (trainer)** - must be 18+
+- Sarah is designated as the package admin
+
+```
+POST /api/packages
+X-API-Key: your-api-key
+Content-Type: application/json
+```
+
+```json
+{
+  "templateCode": "ENTRY_AGREEMENT_2024",
+  "documentName": "Spring Horse Trials - Entry Agreement",
+  "jurisdiction": "US-VA",
+  "eventDate": "2024-06-15",
+  "mergeVariables": {
+    "eventName": "Spring Horse Trials 2024",
+    "eventDate": "June 15-17, 2024",
+    "horseName": "Midnight Star",
+    "riderName": "Emily Johnson",
+    "competitionLevel": "Training Level"
+  },
+  "signers": [
+    {
+      "role": "participant",
+      "name": "Emily Johnson",
+      "email": "sarah.johnson@example.com",
+      "dateOfBirth": "2009-03-22",
+      "isMinor": true
+    },
+    {
+      "role": "owner",
+      "name": "Sarah Johnson",
+      "email": "sarah.johnson@example.com",
+      "dateOfBirth": "1982-07-10",
+      "isPackageAdmin": true
+    },
+    {
+      "role": "guardian",
+      "name": "Sarah Johnson",
+      "email": "sarah.johnson@example.com",
+      "dateOfBirth": "1982-07-10"
+    },
+    {
+      "role": "trainer",
+      "name": "David Miller",
+      "email": "david.miller@example.com",
+      "phone": "+15551234567",
+      "dateOfBirth": "1975-11-03"
+    }
+  ],
+  "externalRef": "entry-2024-spring-001",
+  "callbackUrl": "https://your-server.com/webhooks/signatures"
+}
+```
+
+**Response (201):**
+
+Because Emily, Sarah (owner), and Sarah (guardian) all share `sarah.johnson@example.com`, they are **consolidated into one signer** with three roles. David is a separate signer. Sarah's verification is email-only; David has both email and phone so he gets both methods.
+
+```json
+{
+  "packageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageCode": "PKG-4K7NW2XR",
+  "status": "pending",
+  "documentName": "Spring Horse Trials - Entry Agreement",
+  "eventDate": "2024-06-15",
+  "totalSigners": 2,
+  "signatureRequests": [
+    {
+      "requestId": "f1e2d3c4-b5a6-7890-abcd-ef0987654321",
+      "signerName": "Emily Johnson",
+      "roles": ["participant", "owner", "guardian"],
+      "signUrl": "https://your-domain.com/sign/a3f8c91b2e4d...",
+      "isPackageAdmin": true
+    },
+    {
+      "requestId": "b9a8c7d6-e5f4-3210-abcd-ef1122334455",
+      "signerName": "David Miller",
+      "roles": ["trainer"],
+      "signUrl": "https://your-domain.com/sign/7d2e5f8a1b3c...",
+      "isPackageAdmin": false
+    }
+  ],
+  "expiresAt": "2024-01-29T15:30:00.000Z"
+}
+```
+
+**What happened:**
+- 4 signers became **2 signature requests** (Sarah consolidated 3 roles)
+- Sarah is the package admin and signs for: participant, owner, guardian
+- David signs for: trainer (verified via both email + SMS since both were provided)
+- Each `requestId` can be used to check individual signer status via `GET /api/requests/:id`
+
+### Step 4: Check Package Status
+
+```
+GET /api/packages/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+X-API-Key: your-api-key
+```
+
+**Response after Sarah signs:**
+
+```json
+{
+  "packageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageCode": "PKG-4K7NW2XR",
+  "externalRef": "entry-2024-spring-001",
+  "documentName": "Spring Horse Trials - Entry Agreement",
+  "jurisdiction": "US-VA",
+  "status": "partial",
+  "totalSigners": 2,
+  "completedSigners": 1,
+  "createdAt": "2024-01-22T15:30:00.000Z",
+  "expiresAt": "2024-01-29T15:30:00.000Z",
+  "signers": [
+    {
+      "name": "Emily Johnson",
+      "email": "sarah.johnson@example.com",
+      "roles": [
+        { "roleId": "r1a2b3c4-0001", "roleName": "participant" },
+        { "roleId": "r1a2b3c4-0002", "roleName": "owner" },
+        { "roleId": "r1a2b3c4-0003", "roleName": "guardian" }
+      ],
+      "signUrl": "https://your-domain.com/sign/a3f8c91b2e4d...",
+      "requestId": "f1e2d3c4-b5a6-7890-abcd-ef0987654321",
+      "status": "signed",
+      "isPackageAdmin": true
+    },
+    {
+      "name": "David Miller",
+      "email": "david.miller@example.com",
+      "roles": [
+        { "roleId": "r1a2b3c4-0004", "roleName": "trainer" }
+      ],
+      "signUrl": "https://your-domain.com/sign/7d2e5f8a1b3c...",
+      "requestId": "b9a8c7d6-e5f4-3210-abcd-ef1122334455",
+      "status": "pending",
+      "isPackageAdmin": false
+    }
+  ]
+}
+```
+
+### Step 5: Replace a Signer (If Needed)
+
+If David can't sign, Sarah (as package admin) can replace him. Use a `roleId` from the status response:
+
+```
+PUT /api/packages/a1b2c3d4-e5f6-7890-abcd-ef1234567890/roles/r1a2b3c4-0004
+X-API-Key: your-api-key
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Lisa Chen",
+  "email": "lisa.chen@example.com",
+  "dateOfBirth": "1990-04-15"
+}
+```
+
+**Response:**
+
+```json
+{
+  "roleId": "r1a2b3c4-0004",
+  "roleName": "trainer",
+  "previousSigner": "David Miller",
+  "newSigner": "Lisa Chen",
+  "signUrl": "https://your-domain.com/sign/9x8w7v6u5t4s..."
+}
+```
+
+David's old link is immediately invalidated. Lisa receives a new signing link.
+
+### Step 6: Webhook Notifications
+
+As each signer completes, your `callbackUrl` receives updates:
+
+**When Sarah signs (partial):**
+```json
+{
+  "event": "signer.completed",
+  "packageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageCode": "PKG-4K7NW2XR",
+  "externalRef": "entry-2024-spring-001",
+  "jurisdiction": "US-VA",
+  "documentName": "Spring Horse Trials - Entry Agreement",
+  "completedSigners": 1,
+  "totalSigners": 2,
+  "signer": {
+    "name": "Emily Johnson",
+    "email": "sarah.johnson@example.com",
+    "roles": ["participant", "owner", "guardian"],
+    "signedAt": "2024-01-22T16:45:00.000Z"
+  }
+}
+```
+
+**When Lisa signs (complete):**
+```json
+{
+  "event": "package.completed",
+  "packageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageCode": "PKG-4K7NW2XR",
+  "externalRef": "entry-2024-spring-001",
+  "jurisdiction": "US-VA",
+  "documentName": "Spring Horse Trials - Entry Agreement",
+  "completedSigners": 2,
+  "totalSigners": 2,
+  "signer": {
+    "name": "Lisa Chen",
+    "email": "lisa.chen@example.com",
+    "roles": ["trainer"],
+    "signedAt": "2024-01-23T09:15:00.000Z"
+  }
+}
+```
 
 ---
 
