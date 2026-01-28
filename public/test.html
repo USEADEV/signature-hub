@@ -469,13 +469,14 @@
 
           <div class="form-row" style="margin-top: 15px;">
             <label>Signers (JSON Array) *</label>
-            <textarea id="cp-signers" style="min-height: 160px;">[
+            <textarea id="cp-signers" style="min-height: 200px;">[
   {
     "role": "participant",
     "name": "John Athlete",
     "email": "john@example.com",
     "dateOfBirth": "2010-05-15",
-    "isMinor": true
+    "isMinor": true,
+    "isPackageAdmin": true
   },
   {
     "role": "guardian",
@@ -491,7 +492,7 @@
     "dateOfBirth": "1990-01-10"
   }
 ]</textarea>
-            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Verification auto-detected: email if provided, SMS if phone provided, both if both. Signers with same email are consolidated.</p>
+            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Set <code>isPackageAdmin: true</code> on one signer to designate them as the decision maker who can replace signers. If not specified, the first signer becomes admin.</p>
           </div>
 
           <button class="btn-send" id="btn-createPackage">Create Package</button>

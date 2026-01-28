@@ -3,34 +3,243 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign Document - USEA eSign</title>
+  <title>Sign Document - SignatureHub</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Progress Steps */
+    .progress-steps {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 28px;
+      padding: 0 16px;
+    }
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--color-text-light);
+    }
+    .progress-step .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+    .progress-step.active .step-num {
+      background: var(--color-primary);
+      color: white;
+      box-shadow: 0 0 0 4px rgba(26, 26, 46, 0.15);
+    }
+    .progress-step.completed .step-num {
+      background: var(--color-success);
+      color: white;
+    }
+    .progress-step .step-label {
+      display: none;
+    }
+    @media (min-width: 480px) {
+      .progress-step .step-label { display: inline; }
+    }
+    .progress-line {
+      width: 48px;
+      height: 3px;
+      background: var(--color-border);
+      margin: 0 8px;
+      border-radius: 2px;
+      transition: background 0.3s ease;
+    }
+    .progress-line.completed {
+      background: var(--color-success);
+    }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .toast {
+      padding: 14px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 500;
+      animation: slideDown 0.3s ease;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .toast.success { background: var(--color-success); color: white; }
+    .toast.error { background: var(--color-error); color: white; }
+    .toast.info { background: var(--color-primary); color: white; }
+    @keyframes slideDown {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Inline error messages */
+    .inline-error {
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      color: var(--color-error);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin: 16px 0;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .inline-error.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* Button loading states */
+    .btn.loading {
+      position: relative;
+      color: transparent !important;
+      pointer-events: none;
+    }
+    .btn.loading::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid transparent;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      left: 50%;
+      top: 50%;
+      margin: -9px 0 0 -9px;
+    }
+
+    /* Status pages */
+    .status-page {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .status-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 24px;
+    }
+    .status-icon.expired { background: #fef3c7; color: #d97706; }
+    .status-icon.cancelled { background: #fee2e2; color: #dc2626; }
+    .status-icon.signed { background: rgba(0, 166, 118, 0.1); color: var(--color-success); }
+    .status-icon.error { background: #fee2e2; color: #dc2626; }
+
+    /* Code timer */
+    .code-timer {
+      font-size: 0.85rem;
+      color: var(--color-text-light);
+      margin-top: 12px;
+    }
+    .code-timer.warning { color: #d97706; }
+    .code-timer.expired { color: var(--color-error); }
+
+    /* Resend success */
+    .resend-success {
+      color: var(--color-success);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      display: none;
+    }
+    .resend-success.visible { display: block; }
+  </style>
 </head>
 <body>
   <div class="container">
     <header>
       <div class="logo-container">
-        <img src="/images/usea-logo.svg" alt="USEA" class="logo">
-        <h1>USEA eSign</h1>
+        <img src="/images/usea-logo.svg" alt="SignatureHub" class="logo" onerror="this.style.display='none'">
+        <h1>SignatureHub</h1>
       </div>
     </header>
 
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
     <main>
+      <!-- Progress Steps (hidden initially) -->
+      <div id="progress-steps" class="progress-steps hidden">
+        <div class="progress-step" data-step="1">
+          <span class="step-num">1</span>
+          <span class="step-label">Review</span>
+        </div>
+        <div class="progress-line" data-line="1"></div>
+        <div class="progress-step" data-step="2">
+          <span class="step-num">2</span>
+          <span class="step-label">Verify</span>
+        </div>
+        <div class="progress-line" data-line="2"></div>
+        <div class="progress-step" data-step="3">
+          <span class="step-num">3</span>
+          <span class="step-label">Sign</span>
+        </div>
+      </div>
+
       <!-- Loading State -->
       <div id="loading" class="section">
         <div class="spinner"></div>
-        <p>Loading document...</p>
+        <p>Loading your document...</p>
       </div>
 
-      <!-- Error State -->
-      <div id="error" class="section hidden">
-        <div class="error-icon">!</div>
-        <p id="error-message">An error occurred.</p>
+      <!-- Generic Error State -->
+      <div id="error" class="section hidden status-page">
+        <div class="status-icon error">!</div>
+        <h2 id="error-title">Something went wrong</h2>
+        <p id="error-message">We couldn't load your document. Please try again.</p>
+        <div style="margin-top: 24px;">
+          <button id="btn-retry" class="btn btn-primary">Try Again</button>
+        </div>
+      </div>
+
+      <!-- Expired State -->
+      <div id="expired" class="section hidden status-page">
+        <div class="status-icon expired">&#9201;</div>
+        <h2>Link Expired</h2>
+        <p>This signature request has expired.</p>
+        <p style="color: var(--color-text-light); font-size: 0.9rem; margin-top: 8px;">Please contact the sender to request a new signing link.</p>
+      </div>
+
+      <!-- Cancelled State -->
+      <div id="cancelled" class="section hidden status-page">
+        <div class="status-icon cancelled">&#10005;</div>
+        <h2>Request Cancelled</h2>
+        <p>This signature request has been cancelled.</p>
+        <p style="color: var(--color-text-light); font-size: 0.9rem; margin-top: 8px;">If you believe this is an error, please contact the sender.</p>
+      </div>
+
+      <!-- Already Signed State -->
+      <div id="already-signed" class="section hidden status-page">
+        <div class="status-icon signed">&#10003;</div>
+        <h2>Already Signed</h2>
+        <p>This document has already been signed.</p>
+        <p style="color: var(--color-text-light); font-size: 0.9rem; margin-top: 8px;">No further action is required.</p>
       </div>
 
       <!-- Step 1: Document Review -->
       <div id="step-document" class="section hidden">
-        <h2>Document to Sign</h2>
+        <h2>Review Document</h2>
         <div class="document-info">
           <p class="document-name" id="document-name"></p>
           <p class="signer-name">Signing as: <strong id="signer-name"></strong></p>
@@ -38,7 +247,7 @@
         </div>
         <div id="document-content" class="document-content hidden"></div>
         <div id="document-url" class="document-url hidden">
-          <a id="document-link" href="#" target="_blank" rel="noopener">View Document (PDF)</a>
+          <a id="document-link" href="#" target="_blank" rel="noopener">View Full Document (PDF)</a>
         </div>
         <button id="btn-continue-to-verify" class="btn btn-primary">Continue to Verification</button>
       </div>
@@ -46,7 +255,9 @@
       <!-- Step 2: Verification -->
       <div id="step-verify" class="section hidden">
         <h2>Verify Your Identity</h2>
-        <p>To ensure the security of your signature, please verify your identity.</p>
+        <p>Choose how you'd like to receive your verification code.</p>
+
+        <div id="inline-error-verify" class="inline-error"></div>
 
         <div id="verification-options" class="verification-options">
           <button id="btn-verify-email" class="btn btn-secondary hidden">Send Code via Email</button>
@@ -57,22 +268,26 @@
           <p id="verification-sent-message" class="success-message"></p>
           <div class="code-input-group">
             <label for="verification-code">Enter 6-digit code:</label>
-            <input type="text" id="verification-code" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric">
+            <input type="text" id="verification-code" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" placeholder="------">
+            <div id="code-timer" class="code-timer hidden">Code expires in <span id="timer-value">5:00</span></div>
           </div>
           <div id="demo-hint" class="demo-hint hidden">
             <strong>Demo Mode:</strong> Use code <code>123456</code>
           </div>
           <button id="btn-confirm-code" class="btn btn-primary">Verify Code</button>
           <div class="verification-actions">
-            <button id="btn-resend-code" class="btn btn-link">Resend Code</button>
+            <button id="btn-resend-code" class="btn btn-link">Didn't receive it? Resend</button>
             <button id="btn-try-different" class="btn btn-link hidden">Try Different Method</button>
           </div>
+          <p id="resend-success" class="resend-success">New code sent!</p>
         </div>
       </div>
 
       <!-- Step 3: Signature -->
       <div id="step-sign" class="section hidden">
         <h2>Sign Document</h2>
+
+        <div id="inline-error-sign" class="inline-error"></div>
 
         <div class="signature-tabs">
           <button id="tab-type" class="tab active">Type Signature</button>
@@ -81,7 +296,7 @@
 
         <div id="signature-type" class="signature-panel">
           <label for="typed-signature">Type your full legal name:</label>
-          <input type="text" id="typed-signature" class="signature-input" placeholder="Your Name">
+          <input type="text" id="typed-signature" class="signature-input" placeholder="Your Full Name">
           <div id="typed-preview" class="signature-preview"></div>
         </div>
 
@@ -102,17 +317,16 @@
       </div>
 
       <!-- Step 4: Success -->
-      <div id="step-success" class="section hidden">
-        <div class="success-icon">&#10003;</div>
-        <h2>Document Signed Successfully</h2>
+      <div id="step-success" class="section hidden status-page">
+        <div class="status-icon signed">&#10003;</div>
+        <h2>Document Signed!</h2>
         <p>Thank you for signing. A confirmation has been sent to you.</p>
         <p class="signed-at">Signed on: <strong id="signed-at"></strong></p>
       </div>
     </main>
 
     <footer>
-      <p>&copy; 2026 USEA eSign. Secure document signing.</p>
-      <p class="attribution">Developed and designed by <a href="https://useventing.com" target="_blank">useventing.com</a></p>
+      <p>&copy; 2026 SignatureHub. Secure document signing.</p>
     </footer>
   </div>
 

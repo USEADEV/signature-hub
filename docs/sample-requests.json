@@ -52,7 +52,9 @@
             "role": "guardian",
             "name": "John Smith",
             "email": "parent@example.com",
-            "dateOfBirth": "1980-03-20"
+            "dateOfBirth": "1980-03-20",
+            "isPackageAdmin": true,
+            "_note": "Guardian is designated as the package admin who can replace signers"
           },
           {
             "role": "coach",

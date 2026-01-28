@@ -167,6 +167,16 @@ Multi-party packages allow collecting signatures from multiple people with autom
 | phone | string | Conditional | At least email OR phone required |
 | dateOfBirth | string | No | Date of birth for age validation (YYYY-MM-DD) |
 | isMinor | boolean | No | Flag indicating if signer is a minor |
+| isPackageAdmin | boolean | No | Designates this signer as the package admin (see below) |
+
+**Package Admin:**
+
+One signer per package can be designated as the "package admin" - the decision maker who can:
+- Replace signers who refuse or are unable to sign
+- Receive notifications about signature status updates
+- Make changes to the package as needed
+
+If no signer is explicitly marked as `isPackageAdmin: true`, the first signer will be automatically designated as the admin. Only one person (or consolidated signer group) can be the package admin.
 
 **Automatic Verification Method Detection:**
 
@@ -216,12 +226,14 @@ In this example: John uses email, Mike uses SMS, Jane uses both.
     {
       "signerName": "John Smith Sr",
       "roles": ["participant", "guardian"],
-      "signUrl": "https://your-domain.com/sign/token456"
+      "signUrl": "https://your-domain.com/sign/token456",
+      "isPackageAdmin": true
     },
     {
       "signerName": "Mike Wilson",
       "roles": ["coach"],
-      "signUrl": "https://your-domain.com/sign/token789"
+      "signUrl": "https://your-domain.com/sign/token789",
+      "isPackageAdmin": false
     }
   ],
   "expiresAt": "2024-02-15T00:00:00.000Z"
@@ -275,7 +287,8 @@ Returns detailed status including all signers and their completion status.
       "roles": ["participant", "guardian"],
       "signUrl": "https://your-domain.com/sign/token456",
       "requestId": "req_def456",
-      "status": "signed"
+      "status": "signed",
+      "isPackageAdmin": true
     },
     {
       "name": "Mike Wilson",
@@ -283,7 +296,8 @@ Returns detailed status including all signers and their completion status.
       "roles": ["coach"],
       "signUrl": "https://your-domain.com/sign/token789",
       "requestId": "req_ghi789",
-      "status": "pending"
+      "status": "pending",
+      "isPackageAdmin": false
     }
   ]
 }

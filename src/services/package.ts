@@ -93,6 +93,34 @@ export function getRoleAgeRequirements(): RoleAgeRequirement[] {
   return [...DEFAULT_ROLE_AGE_REQUIREMENTS];
 }
 
+// Validate that exactly one signer (or consolidated group) is designated as package admin
+function validatePackageAdmin(signers: SignerInput[]): { valid: boolean; error?: string } {
+  const admins = signers.filter(s => s.isPackageAdmin);
+
+  if (admins.length === 0) {
+    // Auto-assign first signer as admin if none specified
+    return { valid: true };
+  }
+
+  if (admins.length > 1) {
+    // Check if all admins share the same email (will be consolidated)
+    const adminEmails = new Set(admins.map(a => a.email?.toLowerCase()).filter(Boolean));
+    const adminPhones = new Set(admins.map(a => a.phone).filter(Boolean));
+
+    // If they all share the same email or phone, they'll be consolidated into one signer
+    if (adminEmails.size <= 1 && adminPhones.size <= 1) {
+      return { valid: true };
+    }
+
+    return {
+      valid: false,
+      error: 'Only one person can be designated as package admin. Multiple admins found with different contact info.'
+    };
+  }
+
+  return { valid: true };
+}
+
 // Helper functions for database operations
 function generatePackageCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -206,6 +234,18 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     throw new Error(`Age validation failed: ${ageValidation.errors.join('; ')}`);
   }
 
+  // Validate package admin designation
+  const adminValidation = validatePackageAdmin(input.signers);
+  if (!adminValidation.valid) {
+    throw new Error(adminValidation.error!);
+  }
+
+  // Auto-assign first signer as package admin if none specified
+  const hasAdmin = input.signers.some(s => s.isPackageAdmin);
+  if (!hasAdmin && input.signers.length > 0) {
+    input.signers[0].isPackageAdmin = true;
+  }
+
   const packageId = uuidv4();
   const packageCode = generatePackageCode();
 
@@ -290,7 +330,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
   );
 
   // Create signature requests and roles for each consolidated signer
-  const signatureRequests: { signerName: string; roles: string[]; signUrl: string }[] = [];
+  const signatureRequests: { signerName: string; roles: string[]; signUrl: string; isPackageAdmin: boolean }[] = [];
 
   for (const [, signerGroup] of consolidatedMap) {
     const primarySigner = signerGroup[0];
@@ -331,14 +371,17 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
       [packageId, roles.join(', '), request.id]
     );
 
+    // Check if any signer in this group is a package admin
+    const isGroupAdmin = signerGroup.some(s => s.isPackageAdmin);
+
     // Create role records for each role this signer has
     for (const signer of signerGroup) {
       const roleId = uuidv4();
       sqliteRun(
         `INSERT INTO signing_roles
          (id, package_id, role_name, signer_name, signer_email, signer_phone,
-          date_of_birth, is_minor, request_id, consolidated_group, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent')`,
+          date_of_birth, is_minor, is_package_admin, request_id, consolidated_group, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent')`,
         [
           roleId,
           packageId,
@@ -348,6 +391,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
           signer.phone || null,
           signer.dateOfBirth || null,
           signer.isMinor ? 1 : 0,
+          isGroupAdmin ? 1 : 0,
           request.id,
           consolidatedGroupId,
         ]
@@ -360,6 +404,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
       signerName: primarySigner.name,
       roles,
       signUrl,
+      isPackageAdmin: isGroupAdmin,
     });
   }
 
@@ -408,6 +453,7 @@ export async function getPackageRoles(packageId: string): Promise<SigningRole[]>
   return roles.map(r => ({
     ...r,
     is_minor: Boolean(r.is_minor),
+    is_package_admin: Boolean(r.is_package_admin),
   }));
 }
 
@@ -447,6 +493,9 @@ export async function getPackageStatus(packageId: string): Promise<PackageStatus
     // Determine status - signed if any role in group is signed
     const isSigned = roleGroup.some(r => r.status === 'signed');
 
+    // Check if any role in this group is a package admin
+    const isPackageAdmin = roleGroup.some(r => r.is_package_admin);
+
     signers.push({
       email: primaryRole.signer_email,
       phone: primaryRole.signer_phone,
@@ -455,6 +504,7 @@ export async function getPackageStatus(packageId: string): Promise<PackageStatus
       signUrl,
       requestId: primaryRole.request_id || '',
       status: isSigned ? 'signed' : primaryRole.status,
+      isPackageAdmin,
     });
   }
 
@@ -589,7 +639,11 @@ export async function getRoleById(roleId: string): Promise<SigningRole | null> {
     `SELECT * FROM signing_roles WHERE id = ?`,
     [roleId]
   );
-  return role ? { ...role, is_minor: Boolean(role.is_minor) } : null;
+  return role ? {
+    ...role,
+    is_minor: Boolean(role.is_minor),
+    is_package_admin: Boolean(role.is_package_admin),
+  } : null;
 }
 
 // Replace a signer in a package (before they've signed)

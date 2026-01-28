@@ -9,28 +9,11 @@ import { config } from '../config';
 
 const router = Router();
 
-// Get signing page
+// Get signing page - always serve the HTML page, let frontend handle states
 router.get('/:token', async (req: Request, res: Response) => {
   try {
-    const data = await getRequestFromToken(req.params.token);
-    if (!data) {
-      res.status(404).send('Signature request not found or has expired.');
-      return;
-    }
-
-    const { request, token } = data;
-
-    if (request.status === 'signed') {
-      res.send('This document has already been signed. Thank you!');
-      return;
-    }
-
-    if (request.status === 'cancelled') {
-      res.send('This signature request has been cancelled.');
-      return;
-    }
-
-    // Serve the signing page
+    // Always serve the signing page - the frontend will call /data
+    // and handle the different states (expired, cancelled, signed, etc.)
     res.sendFile(path.join(__dirname, '../../public/sign.html'));
   } catch (error) {
     console.error('Failed to load signing page:', error);
@@ -43,14 +26,27 @@ router.get('/:token/data', async (req: Request, res: Response) => {
   try {
     const data = await getRequestFromToken(req.params.token);
     if (!data) {
-      res.status(404).json({ error: 'Request not found or expired' });
+      // 410 Gone - the resource existed but is no longer available
+      res.status(410).json({ error: 'This signature request has expired or is no longer available' });
       return;
     }
 
     const { request, token } = data;
 
+    // Handle terminal states with appropriate status codes
     if (request.status === 'signed') {
-      res.status(400).json({ error: 'Already signed' });
+      // 409 Conflict - request is in a state that conflicts with the action
+      res.status(409).json({ error: 'This document has already been signed' });
+      return;
+    }
+
+    if (request.status === 'cancelled') {
+      res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+
+    if (request.status === 'expired') {
+      res.status(410).json({ error: 'This signature request has expired' });
       return;
     }
 
@@ -83,11 +79,25 @@ router.post('/:token/verify', verificationRateLimit, async (req: Request, res: R
   try {
     const data = await getRequestFromToken(req.params.token);
     if (!data) {
-      res.status(404).json({ error: 'Request not found or expired' });
+      res.status(410).json({ error: 'This signature request has expired or is no longer available' });
       return;
     }
 
     const { request, token } = data;
+
+    // Check for terminal states
+    if (request.status === 'signed') {
+      res.status(409).json({ error: 'This document has already been signed' });
+      return;
+    }
+    if (request.status === 'cancelled') {
+      res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+    if (request.status === 'expired') {
+      res.status(410).json({ error: 'This signature request has expired' });
+      return;
+    }
 
     if (token.is_verified) {
       res.json({ success: true, message: 'Already verified' });
@@ -133,11 +143,26 @@ router.post('/:token/confirm', verificationRateLimit, async (req: Request, res: 
   try {
     const data = await getRequestFromToken(req.params.token);
     if (!data) {
-      res.status(404).json({ error: 'Request not found or expired' });
+      res.status(410).json({ error: 'This signature request has expired or is no longer available' });
       return;
     }
 
-    const { token } = data;
+    const { request, token } = data;
+
+    // Check for terminal states
+    if (request.status === 'signed') {
+      res.status(409).json({ error: 'This document has already been signed' });
+      return;
+    }
+    if (request.status === 'cancelled') {
+      res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+    if (request.status === 'expired') {
+      res.status(410).json({ error: 'This signature request has expired' });
+      return;
+    }
+
     const code = req.body.code as string;
 
     if (!code || code.length !== 6) {
@@ -162,6 +187,29 @@ router.post('/:token/confirm', verificationRateLimit, async (req: Request, res: 
 // Submit signature
 router.post('/:token/submit', signatureRateLimit, async (req: Request, res: Response) => {
   try {
+    // Pre-check request state before processing signature
+    const data = await getRequestFromToken(req.params.token);
+    if (!data) {
+      res.status(410).json({ error: 'This signature request has expired or is no longer available' });
+      return;
+    }
+
+    const { request } = data;
+
+    // Check for terminal states
+    if (request.status === 'signed') {
+      res.status(409).json({ error: 'This document has already been signed' });
+      return;
+    }
+    if (request.status === 'cancelled') {
+      res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+    if (request.status === 'expired') {
+      res.status(410).json({ error: 'This signature request has expired' });
+      return;
+    }
+
     const signerIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim()
       || req.socket.remoteAddress
       || 'unknown';

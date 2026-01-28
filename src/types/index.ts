@@ -235,6 +235,7 @@ export interface SigningRole {
   signer_phone?: string;
   date_of_birth?: string;
   is_minor: boolean;
+  is_package_admin: boolean;
   request_id?: string;
   consolidated_group?: string;
   status: RoleStatus;
@@ -260,6 +261,7 @@ export interface SignerInput {
   dateOfBirth?: string;
   isMinor?: boolean;
   verificationMethod?: VerificationMethod;
+  isPackageAdmin?: boolean;
 }
 
 export interface ReplaceSignerInput {
@@ -308,6 +310,7 @@ export interface ConsolidatedSigner {
   signUrl: string;
   requestId: string;
   status: RoleStatus;
+  isPackageAdmin: boolean;
 }
 
 export interface CreatePackageResponse {
@@ -321,6 +324,7 @@ export interface CreatePackageResponse {
     signerName: string;
     roles: string[];
     signUrl: string;
+    isPackageAdmin: boolean;
   }[];
   expiresAt?: Date;
 }
