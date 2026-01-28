@@ -188,7 +188,7 @@
         signerName: document.getElementById('cr-signerName').value,
         signerEmail: document.getElementById('cr-signerEmail').value || undefined,
         signerPhone: document.getElementById('cr-signerPhone').value || undefined,
-        verificationMethod: document.getElementById('cr-verificationMethod').value,
+        verificationMethod: document.getElementById('cr-verificationMethod').value || undefined,
         documentContent: document.getElementById('cr-documentContent').value || undefined,
         callbackUrl: document.getElementById('cr-callbackUrl').value || undefined,
         externalRef: document.getElementById('cr-externalRef').value || undefined
@@ -353,7 +353,7 @@
         eventDate: document.getElementById('cp-eventDate').value || undefined,
         mergeVariables: mergeVariables,
         externalRef: document.getElementById('cp-externalRef').value || undefined,
-        verificationMethod: document.getElementById('cp-verificationMethod').value,
+        verificationMethod: document.getElementById('cp-verificationMethod').value || undefined,
         callbackUrl: document.getElementById('cp-callbackUrl').value || undefined,
         signers: signers
       };
@@ -460,7 +460,7 @@
       name: name,
       email: email || undefined,
       phone: phone || undefined,
-      verificationMethod: document.getElementById('rs-verificationMethod').value
+      verificationMethod: document.getElementById('rs-verificationMethod').value || undefined
     };
 
     const result = await apiCall('PUT', '/api/packages/' + packageId + '/roles/' + roleId, body);

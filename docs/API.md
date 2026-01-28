@@ -153,7 +153,7 @@ Multi-party packages allow collecting signatures from multiple people with autom
 | eventDate | string | No | Event date for age validation (YYYY-MM-DD) |
 | mergeVariables | object | No | Variables for template substitution |
 | signers | array | Yes | Array of signer objects |
-| verificationMethod | string | No | "email", "sms", or "both" |
+| verificationMethod | string | No | Auto-detected from contact info (optional override) |
 | externalRef | string | No | Your system's reference ID |
 | callbackUrl | string | No | Webhook URL for status updates |
 | expiresAt | string | No | Expiration date (ISO 8601) |
@@ -163,14 +163,20 @@ Multi-party packages allow collecting signatures from multiple people with autom
 |-------|------|----------|-------------|
 | role | string | Yes | Role name (participant, guardian, trainer, coach, witness) |
 | name | string | Yes | Full name |
-| email | string | Conditional | Required if verificationMethod is "email" |
-| phone | string | Conditional | Required if verificationMethod is "sms" |
+| email | string | Conditional | At least email OR phone required |
+| phone | string | Conditional | At least email OR phone required |
 | dateOfBirth | string | No | Date of birth for age validation (YYYY-MM-DD) |
 | isMinor | boolean | No | Flag indicating if signer is a minor |
-| verificationMethod | string | No | Per-signer verification: "email", "sms", or "both" (overrides package default) |
 
-**Per-Signer Verification:**
-Each signer can have their own verification method, which is useful when signers have different contact information available:
+**Automatic Verification Method Detection:**
+
+The verification method is automatically determined based on provided contact information - no need to specify it:
+
+| Contact Info Provided | Verification Used |
+|----------------------|-------------------|
+| Email only | Email verification |
+| Phone only | SMS verification |
+| Both email and phone | Both methods |
 
 ```json
 {
@@ -178,18 +184,24 @@ Each signer can have their own verification method, which is useful when signers
     {
       "role": "participant",
       "name": "John Doe",
-      "email": "john@example.com",
-      "verificationMethod": "email"
+      "email": "john@example.com"
     },
     {
       "role": "coach",
       "name": "Mike Wilson",
-      "phone": "+15551234567",
-      "verificationMethod": "sms"
+      "phone": "+15551234567"
+    },
+    {
+      "role": "guardian",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+15559876543"
     }
   ]
 }
 ```
+
+In this example: John uses email, Mike uses SMS, Jane uses both.
 
 **Response (201):**
 ```json
@@ -312,10 +324,11 @@ Replace a signer who hasn't signed yet. Use this when someone refuses to sign or
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | name | string | Yes | Full name of the new signer |
-| email | string | Conditional | Required for email verification |
-| phone | string | Conditional | Required for SMS verification |
+| email | string | Conditional | At least email OR phone required |
+| phone | string | Conditional | At least email OR phone required |
 | dateOfBirth | string | No | Date of birth (YYYY-MM-DD) |
-| verificationMethod | string | No | "email", "sms", or "both" (default: "email") |
+
+Verification method is auto-detected based on contact info provided.
 
 **Response (200):**
 ```json

@@ -164,6 +164,22 @@ export async function getJurisdictionAddendum(jurisdictionCode: string): Promise
   );
 }
 
+// Auto-detect verification method based on available contact info
+function detectVerificationMethod(email?: string, phone?: string): VerificationMethod {
+  const hasEmail = email && email.includes('@');
+  const hasPhone = phone && phone.length >= 10;
+
+  if (hasEmail && hasPhone) {
+    return 'both';
+  } else if (hasEmail) {
+    return 'email';
+  } else if (hasPhone) {
+    return 'sms';
+  }
+  // Default to email if nothing valid (validation will catch this later)
+  return 'email';
+}
+
 // Consolidate signers by email/phone - same person with multiple roles gets one signature request
 function consolidateSigners(signers: SignerInput[]): Map<string, SignerInput[]> {
   const consolidated = new Map<string, SignerInput[]>();
@@ -285,18 +301,12 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     const signerVariables = buildSignerVariables(primarySigner, roles, input.eventDate);
     const signerDocumentContent = resolveTemplate(baseDocumentContent, signerVariables);
 
-    // Determine verification method - use signer-specific if provided, else package default
-    const signerVerificationMethod = primarySigner.verificationMethod || input.verificationMethod || 'email';
+    // Auto-detect verification method based on available contact info
+    const signerVerificationMethod = detectVerificationMethod(primarySigner.email, primarySigner.phone);
 
-    // Validate verification method matches contact info
+    // Validate signer has at least one contact method
     if (signerVerificationMethod === 'email' && !primarySigner.email) {
-      throw new Error(`Signer ${primarySigner.name} requires email for email verification`);
-    }
-    if (signerVerificationMethod === 'sms' && !primarySigner.phone) {
-      throw new Error(`Signer ${primarySigner.name} requires phone for SMS verification`);
-    }
-    if (signerVerificationMethod === 'both' && (!primarySigner.email || !primarySigner.phone)) {
-      throw new Error(`Signer ${primarySigner.name} requires both email and phone for 'both' verification`);
+      throw new Error(`Signer ${primarySigner.name} must have either a valid email or phone number`);
     }
 
     // Create a single signature request for this consolidated signer
@@ -615,17 +625,11 @@ export async function replaceSigner(
     throw new Error(`Cannot replace signer - ${role.signer_name} has already signed as ${role.role_name}`);
   }
 
-  // Validate new signer has required contact info
-  const verificationMethod: VerificationMethod = input.verificationMethod || 'email';
-  if (verificationMethod === 'email' && !input.email) {
-    throw new Error('Email is required for email verification');
+  // Validate new signer has at least one contact method and auto-detect verification
+  if (!input.email && !input.phone) {
+    throw new Error('New signer must have either email or phone');
   }
-  if (verificationMethod === 'sms' && !input.phone) {
-    throw new Error('Phone is required for SMS verification');
-  }
-  if (verificationMethod === 'both' && (!input.email || !input.phone)) {
-    throw new Error('Both email and phone are required for both verification');
-  }
+  const verificationMethod = detectVerificationMethod(input.email, input.phone);
 
   const previousSigner = role.signer_name;
 

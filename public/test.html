@@ -270,12 +270,14 @@
             <input type="tel" id="cr-signerPhone" placeholder="+15551234567">
           </div>
           <div class="form-row">
-            <label>Verification Method</label>
+            <label>Verification Method (optional)</label>
             <select id="cr-verificationMethod">
-              <option value="email">Email</option>
-              <option value="sms">SMS</option>
+              <option value="">Auto-detect</option>
+              <option value="email">Email only</option>
+              <option value="sms">SMS only</option>
               <option value="both">Both</option>
             </select>
+            <p class="hint">Auto-detects: email if provided, SMS if phone provided, both if both</p>
           </div>
           <div class="form-row">
             <label>Document Content (HTML)</label>
@@ -449,12 +451,14 @@
                 <input type="text" id="cp-externalRef" placeholder="your-system-id">
               </div>
               <div class="form-row">
-                <label>Verification Method</label>
+                <label>Verification Method (optional)</label>
                 <select id="cp-verificationMethod">
-                  <option value="email">Email</option>
-                  <option value="sms">SMS</option>
-                  <option value="both">Both</option>
+                  <option value="">Auto-detect from contact info</option>
+                  <option value="email">Email only</option>
+                  <option value="sms">SMS only</option>
+                  <option value="both">Both required</option>
                 </select>
+                <p class="hint">Leave as auto-detect - uses email if provided, SMS if phone provided, both if both provided.</p>
               </div>
               <div class="form-row">
                 <label>Callback URL</label>
@@ -465,32 +469,29 @@
 
           <div class="form-row" style="margin-top: 15px;">
             <label>Signers (JSON Array) *</label>
-            <textarea id="cp-signers" style="min-height: 180px;">[
+            <textarea id="cp-signers" style="min-height: 160px;">[
   {
     "role": "participant",
     "name": "John Athlete",
     "email": "john@example.com",
     "dateOfBirth": "2010-05-15",
-    "isMinor": true,
-    "verificationMethod": "email"
+    "isMinor": true
   },
   {
     "role": "guardian",
     "name": "Jane Parent",
     "email": "jane@example.com",
     "phone": "+15551234567",
-    "dateOfBirth": "1985-03-20",
-    "verificationMethod": "email"
+    "dateOfBirth": "1985-03-20"
   },
   {
     "role": "coach",
     "name": "Mike Coach",
     "phone": "+15559876543",
-    "dateOfBirth": "1990-01-10",
-    "verificationMethod": "sms"
+    "dateOfBirth": "1990-01-10"
   }
 ]</textarea>
-            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Each signer can have their own verificationMethod (email/sms/both). Signers with same email are consolidated.</p>
+            <p class="hint">Roles: participant, guardian, trainer, coach, witness. Verification auto-detected: email if provided, SMS if phone provided, both if both. Signers with same email are consolidated.</p>
           </div>
 
           <button class="btn-send" id="btn-createPackage">Create Package</button>
@@ -594,12 +595,14 @@
                 <input type="tel" id="rs-phone" placeholder="+15551234567">
               </div>
               <div class="form-row">
-                <label>Verification Method</label>
+                <label>Verification Method (optional)</label>
                 <select id="rs-verificationMethod">
-                  <option value="email">Email</option>
-                  <option value="sms">SMS</option>
+                  <option value="">Auto-detect</option>
+                  <option value="email">Email only</option>
+                  <option value="sms">SMS only</option>
                   <option value="both">Both</option>
                 </select>
+                <p class="hint">Auto-detects based on provided contact info</p>
               </div>
             </div>
           </div>

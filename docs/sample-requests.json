@@ -100,8 +100,8 @@
       "_expectedResult": "One signature request created for family@example.com with roles: participant (x2), guardian"
     },
 
-    "perSignerVerification": {
-      "_description": "Package where each signer has different verification methods",
+    "autoDetectedVerification": {
+      "_description": "Verification method is auto-detected from contact info provided",
       "endpoint": "POST /api/packages",
       "request": {
         "documentName": "Mixed Verification Waiver",
@@ -111,27 +111,24 @@
             "role": "participant",
             "name": "Alex Student",
             "email": "alex@example.com",
-            "verificationMethod": "email",
-            "_comment": "Student prefers email verification"
+            "_autoDetected": "Uses email verification (only email provided)"
           },
           {
             "role": "guardian",
             "name": "Parent Smith",
             "phone": "+15551234567",
-            "verificationMethod": "sms",
-            "_comment": "Parent only has phone number"
+            "_autoDetected": "Uses SMS verification (only phone provided)"
           },
           {
             "role": "coach",
             "name": "Coach Johnson",
             "email": "coach@example.com",
             "phone": "+15559876543",
-            "verificationMethod": "both",
-            "_comment": "Coach prefers both for extra security"
+            "_autoDetected": "Uses both email + SMS verification (both provided)"
           }
         ]
       },
-      "_note": "Each signer can have their own verificationMethod, overriding the package default"
+      "_note": "No need to specify verificationMethod - automatically detected based on what contact info is provided"
     },
 
     "fullFeaturedPackage": {
@@ -246,9 +243,9 @@
       "request": {
         "name": "Aunt Mary Smith",
         "email": "aunt.mary@example.com",
-        "phone": "+15559876543",
-        "verificationMethod": "email"
+        "phone": "+15559876543"
       },
+      "_autoDetected": "Uses both email + SMS since both are provided",
       "_workflow": [
         "1. Original package created with Parent A as guardian",
         "2. Parent A is unavailable or refuses to sign",
@@ -265,9 +262,9 @@
       "endpoint": "PUT /api/packages/{packageId}/roles/{roleId}",
       "request": {
         "name": "New Coach Williams",
-        "phone": "+15551112222",
-        "verificationMethod": "sms"
-      }
+        "phone": "+15551112222"
+      },
+      "_autoDetected": "Uses SMS since only phone is provided"
     }
   },
 

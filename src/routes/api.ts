@@ -86,18 +86,18 @@ router.post('/requests', async (req: Request, res: Response) => {
       return;
     }
 
-    // Validate verification method matches available contact info
-    if (input.verificationMethod === 'email' && !input.signerEmail) {
-      res.status(400).json({ error: 'signerEmail is required when verificationMethod is email' });
-      return;
-    }
-    if (input.verificationMethod === 'sms' && !input.signerPhone) {
-      res.status(400).json({ error: 'signerPhone is required when verificationMethod is sms' });
-      return;
-    }
-    if (input.verificationMethod === 'both' && (!input.signerEmail || !input.signerPhone)) {
-      res.status(400).json({ error: 'Both signerEmail and signerPhone are required when verificationMethod is both' });
-      return;
+    // Auto-detect verification method based on available contact info
+    // If both email and phone provided, use 'both'
+    // If only email, use 'email'
+    // If only phone, use 'sms'
+    if (!input.verificationMethod) {
+      if (input.signerEmail && input.signerPhone) {
+        input.verificationMethod = 'both';
+      } else if (input.signerEmail) {
+        input.verificationMethod = 'email';
+      } else {
+        input.verificationMethod = 'sms';
+      }
     }
 
     // Must have either documentContent, documentUrl, or waiverTemplateCode
