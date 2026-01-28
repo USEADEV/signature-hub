@@ -321,6 +321,7 @@ export interface CreatePackageResponse {
   eventDate?: string;
   totalSigners: number;
   signatureRequests: {
+    requestId: string;
     signerName: string;
     roles: string[];
     signUrl: string;

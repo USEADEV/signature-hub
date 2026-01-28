@@ -228,12 +228,14 @@ In this example: John uses email, Mike uses SMS, Jane uses both.
   "totalSigners": 2,
   "signatureRequests": [
     {
+      "requestId": "req_def456",
       "signerName": "John Smith Sr",
       "roles": ["participant", "guardian"],
       "signUrl": "https://your-domain.com/sign/token456",
       "isPackageAdmin": true
     },
     {
+      "requestId": "req_ghi789",
       "signerName": "Mike Wilson",
       "roles": ["coach"],
       "signUrl": "https://your-domain.com/sign/token789",

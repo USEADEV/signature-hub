@@ -330,7 +330,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
   );
 
   // Create signature requests and roles for each consolidated signer
-  const signatureRequests: { signerName: string; roles: string[]; signUrl: string; isPackageAdmin: boolean }[] = [];
+  const signatureRequests: { requestId: string; signerName: string; roles: string[]; signUrl: string; isPackageAdmin: boolean }[] = [];
 
   for (const [, signerGroup] of consolidatedMap) {
     const primarySigner = signerGroup[0];
@@ -401,6 +401,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     const signUrl = `${config.baseUrl}/sign/${token.token}`;
 
     signatureRequests.push({
+      requestId: request.id,
       signerName: primarySigner.name,
       roles,
       signUrl,
