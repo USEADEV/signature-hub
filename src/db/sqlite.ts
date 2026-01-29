@@ -141,6 +141,7 @@ function initializeTables(db: Database.Database): void {
       signer_phone TEXT,
       date_of_birth TEXT,
       is_minor INTEGER DEFAULT 0,
+      is_package_admin INTEGER DEFAULT 0,
       request_id TEXT,
       consolidated_group TEXT,
       status TEXT DEFAULT 'pending',
@@ -248,6 +249,12 @@ function migratePackagesTables(db: Database.Database): void {
 
   if (!rolesColumns.includes('date_of_birth')) {
     db.exec(`ALTER TABLE signing_roles ADD COLUMN date_of_birth TEXT`);
+  }
+
+  // Migration 003: Add is_package_admin column to signing_roles
+  if (!rolesColumns.includes('is_package_admin')) {
+    db.exec(`ALTER TABLE signing_roles ADD COLUMN is_package_admin INTEGER DEFAULT 0`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_package_admin ON signing_roles(package_id, is_package_admin)`);
   }
 }
 

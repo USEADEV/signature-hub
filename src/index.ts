@@ -9,6 +9,9 @@ import { closePool } from './db/connection';
 
 const app = express();
 
+// Trust proxy (required behind reverse proxies like Railway, Heroku, etc.)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
