@@ -257,47 +257,100 @@
       <div class="endpoint-grid">
 
         <!-- Create Request -->
-        <div class="endpoint-card">
+        <div class="endpoint-card" style="grid-column: span 2;">
           <h3><span class="method post">POST</span> Create Request</h3>
           <div class="endpoint-path">/api/requests</div>
+          <p class="hint">Create a single-signer signature request. Requires documentName, signerName, and at least one contact method (email or phone). Also requires at least one document source (content, URL, or template).</p>
 
-          <div class="form-row">
-            <label>Document Name *</label>
-            <input type="text" id="cr-documentName" value="Test Agreement">
-          </div>
-          <div class="form-row">
-            <label>Signer Name *</label>
-            <input type="text" id="cr-signerName" value="Test User">
-          </div>
-          <div class="form-row">
-            <label>Signer Email</label>
-            <input type="email" id="cr-signerEmail" placeholder="test@example.com">
-          </div>
-          <div class="form-row">
-            <label>Signer Phone (E.164 format)</label>
-            <input type="tel" id="cr-signerPhone" placeholder="+15551234567">
-          </div>
-          <div class="form-row">
-            <label>Verification Method (optional)</label>
-            <select id="cr-verificationMethod">
-              <option value="">Auto-detect</option>
-              <option value="email">Email only</option>
-              <option value="sms">SMS only</option>
-              <option value="both">Both</option>
-            </select>
-            <p class="hint">Auto-detects: email if provided, SMS if phone provided, both if both</p>
-          </div>
-          <div class="form-row">
-            <label>Document Content (HTML)</label>
-            <textarea id="cr-documentContent">&lt;h3&gt;Test Agreement&lt;/h3&gt;&lt;p&gt;This is a test document for API testing.&lt;/p&gt;</textarea>
-          </div>
-          <div class="form-row">
-            <label>Callback URL (optional)</label>
-            <input type="url" id="cr-callbackUrl" placeholder="https://your-server.com/webhook">
-          </div>
-          <div class="form-row">
-            <label>External Reference (optional)</label>
-            <input type="text" id="cr-externalRef" placeholder="your-system-id-123">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div class="form-row">
+                <label>Document Name *</label>
+                <input type="text" id="cr-documentName" value="Test Agreement">
+              </div>
+              <div class="form-row">
+                <label>Signer Name *</label>
+                <input type="text" id="cr-signerName" value="Test User">
+              </div>
+              <div class="form-row">
+                <label>Signer Email</label>
+                <input type="email" id="cr-signerEmail" placeholder="test@example.com">
+              </div>
+              <div class="form-row">
+                <label>Signer Phone (E.164 format)</label>
+                <input type="tel" id="cr-signerPhone" placeholder="+15551234567">
+              </div>
+              <div class="form-row">
+                <label>Verification Method</label>
+                <select id="cr-verificationMethod">
+                  <option value="">Auto-detect</option>
+                  <option value="email">Email only</option>
+                  <option value="sms">SMS only</option>
+                  <option value="both">Both</option>
+                </select>
+                <p class="hint">Auto-detects: email if provided, SMS if phone provided, both if both</p>
+              </div>
+              <div class="form-row">
+                <label>Document Category</label>
+                <select id="cr-documentCategory">
+                  <option value="">Default (other)</option>
+                  <option value="waiver">Waiver</option>
+                  <option value="agreement">Agreement</option>
+                  <option value="consent">Consent</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Document Content (HTML)</label>
+                <textarea id="cr-documentContent">&lt;h3&gt;Test Agreement&lt;/h3&gt;&lt;p&gt;This is a test document for API testing.&lt;/p&gt;</textarea>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-row">
+                <label>Document URL (alternative to content)</label>
+                <input type="url" id="cr-documentUrl" placeholder="https://example.com/document.html">
+                <p class="hint">External URL to display instead of inline content</p>
+              </div>
+              <div class="form-row">
+                <label>Waiver Template Code (alternative to content)</label>
+                <input type="text" id="cr-waiverTemplateCode" placeholder="e.g., LIABILITY_WAIVER_2024">
+                <p class="hint">Use a pre-defined template instead of inline content</p>
+              </div>
+              <div class="form-row">
+                <label>Jurisdiction</label>
+                <input type="text" id="cr-jurisdiction" placeholder="e.g., US-VA">
+              </div>
+              <div class="form-row">
+                <label>Callback URL</label>
+                <input type="url" id="cr-callbackUrl" placeholder="https://your-server.com/webhook">
+              </div>
+              <div class="form-row">
+                <label>External Reference</label>
+                <input type="text" id="cr-externalRef" placeholder="your-system-id-123">
+              </div>
+              <div class="form-row">
+                <label>External Type</label>
+                <input type="text" id="cr-externalType" placeholder="e.g., entry, membership">
+              </div>
+              <div class="form-row">
+                <label>Created By</label>
+                <input type="text" id="cr-createdBy" placeholder="user-id or system name">
+              </div>
+              <div class="form-row">
+                <label>Expires At (ISO date)</label>
+                <input type="datetime-local" id="cr-expiresAt">
+                <p class="hint">Default: 7 days from now</p>
+              </div>
+              <div class="form-row">
+                <label>Merge Variables (JSON)</label>
+                <textarea id="cr-mergeVariables" style="min-height: 60px;" placeholder='{"key": "value"}'></textarea>
+              </div>
+              <div class="form-row">
+                <label>Metadata (JSON)</label>
+                <textarea id="cr-metadata" style="min-height: 60px;" placeholder='{"key": "value"}'></textarea>
+              </div>
+            </div>
           </div>
 
           <button class="btn-send" id="btn-createRequest">Create Request</button>
@@ -314,6 +367,7 @@
             <select id="lr-status">
               <option value="">All</option>
               <option value="pending">Pending</option>
+              <option value="sent">Sent</option>
               <option value="viewed">Viewed</option>
               <option value="verified">Verified</option>
               <option value="signed">Signed</option>
@@ -322,12 +376,36 @@
             </select>
           </div>
           <div class="form-row">
+            <label>Reference Code</label>
+            <input type="text" id="lr-referenceCode" placeholder="SIG-XXXXXXXX">
+          </div>
+          <div class="form-row">
             <label>Signer Email</label>
             <input type="text" id="lr-signerEmail" placeholder="Filter by email">
           </div>
           <div class="form-row">
+            <label>External Reference</label>
+            <input type="text" id="lr-externalRef" placeholder="Filter by external ref">
+          </div>
+          <div class="form-row">
+            <label>External Type</label>
+            <input type="text" id="lr-externalType" placeholder="Filter by type">
+          </div>
+          <div class="form-row">
+            <label>Created By</label>
+            <input type="text" id="lr-createdBy" placeholder="Filter by creator">
+          </div>
+          <div class="form-row">
+            <label>Jurisdiction</label>
+            <input type="text" id="lr-jurisdiction" placeholder="e.g., US-VA">
+          </div>
+          <div class="form-row">
             <label>Limit</label>
             <input type="number" id="lr-limit" value="10">
+          </div>
+          <div class="form-row">
+            <label>Offset</label>
+            <input type="number" id="lr-offset" value="0">
           </div>
 
           <button class="btn-send" id="btn-listRequests">List Requests</button>
@@ -459,6 +537,10 @@
                 <input type="text" id="cp-externalRef" placeholder="your-system-id">
               </div>
               <div class="form-row">
+                <label>External Type</label>
+                <input type="text" id="cp-externalType" placeholder="e.g., entry, membership">
+              </div>
+              <div class="form-row">
                 <label>Verification Method (optional)</label>
                 <select id="cp-verificationMethod">
                   <option value="">Auto-detect from contact info</option>
@@ -471,6 +553,15 @@
               <div class="form-row">
                 <label>Callback URL</label>
                 <input type="url" id="cp-callbackUrl" placeholder="https://your-server.com/webhook">
+              </div>
+              <div class="form-row">
+                <label>Created By</label>
+                <input type="text" id="cp-createdBy" placeholder="user-id or system name">
+              </div>
+              <div class="form-row">
+                <label>Expires At</label>
+                <input type="datetime-local" id="cp-expiresAt">
+                <p class="hint">Default: 7 days from now</p>
               </div>
             </div>
           </div>
@@ -546,6 +637,10 @@
             <label>Limit</label>
             <input type="number" id="lp-limit" value="10">
           </div>
+          <div class="form-row">
+            <label>Offset</label>
+            <input type="number" id="lp-offset" value="0">
+          </div>
 
           <button class="btn-send" id="btn-listPackages">List Packages</button>
           <div id="response-listPackages" class="response-area" style="display:none;"></div>
@@ -569,6 +664,29 @@
 
           <button class="btn-send" id="btn-roleRequirements">Get Requirements</button>
           <div id="response-roleRequirements" class="response-area" style="display:none;"></div>
+        </div>
+
+        <!-- Create Jurisdiction -->
+        <div class="endpoint-card">
+          <h3><span class="method post">POST</span> Create/Update Jurisdiction</h3>
+          <div class="endpoint-path">/api/jurisdictions</div>
+          <p class="hint">Create or update a jurisdiction addendum with legal text</p>
+
+          <div class="form-row">
+            <label>Jurisdiction Code *</label>
+            <input type="text" id="cj-jurisdictionCode" placeholder="e.g., US-VA">
+          </div>
+          <div class="form-row">
+            <label>Jurisdiction Name *</label>
+            <input type="text" id="cj-jurisdictionName" placeholder="e.g., Virginia">
+          </div>
+          <div class="form-row">
+            <label>Addendum HTML *</label>
+            <textarea id="cj-addendumHtml" style="min-height: 100px;" placeholder="Legal text for this jurisdiction">&lt;p&gt;Under the laws of the Commonwealth of Virginia, all parties acknowledge and agree to the terms set forth herein.&lt;/p&gt;</textarea>
+          </div>
+
+          <button class="btn-send" id="btn-createJurisdiction">Create/Update Jurisdiction</button>
+          <div id="response-createJurisdiction" class="response-area" style="display:none;"></div>
         </div>
 
         <!-- Replace Signer -->
@@ -602,6 +720,11 @@
               <div class="form-row">
                 <label>New Signer Phone</label>
                 <input type="tel" id="rs-phone" placeholder="+15551234567">
+              </div>
+              <div class="form-row">
+                <label>Date of Birth</label>
+                <input type="date" id="rs-dateOfBirth">
+                <p class="hint">Required if role has minimum age requirement (trainer, coach, guardian)</p>
               </div>
               <div class="form-row">
                 <label>Verification Method (optional)</label>

@@ -23,9 +23,9 @@
     document.getElementById('savedRequestId').textContent = savedContext.requestId || '-';
     document.getElementById('savedToken').textContent = savedContext.token || '-';
     document.getElementById('savedReference').textContent = savedContext.reference || '-';
-    const pkgEl = document.getElementById('savedPackageId');
+    var pkgEl = document.getElementById('savedPackageId');
     if (pkgEl) pkgEl.textContent = savedContext.packageId || '-';
-    const pkgCodeEl = document.getElementById('savedPackageCode');
+    var pkgCodeEl = document.getElementById('savedPackageCode');
     if (pkgCodeEl) pkgCodeEl.textContent = savedContext.packageCode || '-';
   }
 
@@ -40,36 +40,58 @@
   }
 
   function showResponse(id, status, data) {
-    const el = document.getElementById('response-' + id);
+    var el = document.getElementById('response-' + id);
     el.style.display = 'block';
-    const statusClass = status >= 200 && status < 300 ? 'success' : 'error';
+    var statusClass = status >= 200 && status < 300 ? 'success' : 'error';
     el.innerHTML = '<div class="response-header"><span class="response-status ' + statusClass + '">Status: ' + status + '</span></div><div class="response-body">' + JSON.stringify(data, null, 2) + '</div>';
+  }
+
+  // Helper to safely get element value (returns undefined if empty)
+  function val(id) {
+    var el = document.getElementById(id);
+    if (!el) return undefined;
+    var v = el.value;
+    if (v === '' || v === null) return undefined;
+    return v;
+  }
+
+  // Helper to parse JSON from a textarea (returns undefined if empty, alerts on parse error)
+  function parseJsonField(id, fieldName) {
+    var text = (document.getElementById(id).value || '').trim();
+    if (!text) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      alert('Invalid JSON in ' + fieldName + ': ' + e.message);
+      return null; // null = parse error (caller should abort)
+    }
   }
 
   async function apiCall(method, path, body, useApiKey) {
     if (useApiKey === undefined) useApiKey = true;
-    const headers = { 'Content-Type': 'application/json' };
+    var headers = { 'Content-Type': 'application/json' };
     if (useApiKey) {
       headers['X-API-Key'] = getApiKey();
     }
 
-    const options = { method: method, headers: headers };
+    var options = { method: method, headers: headers };
     if (body) {
       options.body = JSON.stringify(body);
     }
 
     try {
       console.log('API call:', method, path);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+      if (body) console.log('Request body:', JSON.stringify(body, null, 2));
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
       options.signal = controller.signal;
 
-      const response = await fetch(path, options);
+      var response = await fetch(path, options);
       clearTimeout(timeoutId);
 
       console.log('Response status:', response.status);
-      let data;
-      const text = await response.text();
+      var data;
+      var text = await response.text();
       console.log('Response text:', text.substring(0, 500));
       try {
         data = JSON.parse(text);
@@ -86,17 +108,17 @@
   function bindEvents() {
     // API Key bar
     document.getElementById('btn-toggle-key').addEventListener('click', function() {
-      const input = document.getElementById('globalApiKey');
+      var input = document.getElementById('globalApiKey');
       input.type = input.type === 'password' ? 'text' : 'password';
       this.textContent = input.type === 'password' ? 'Show' : 'Hide';
     });
 
     document.getElementById('btn-test-connection').addEventListener('click', async function() {
-      const statusEl = document.getElementById('connectionStatus');
+      var statusEl = document.getElementById('connectionStatus');
       statusEl.textContent = 'Testing...';
       statusEl.className = 'status disconnected';
       try {
-        const result = await apiCall('GET', '/api/requests?limit=1');
+        var result = await apiCall('GET', '/api/requests?limit=1');
         if (result.status === 200) {
           statusEl.textContent = 'Connected';
           statusEl.className = 'status connected';
@@ -116,7 +138,7 @@
     // Tabs
     document.querySelectorAll('.tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
-        const panelName = this.getAttribute('data-panel');
+        var panelName = this.getAttribute('data-panel');
         document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
         document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
         document.getElementById('panel-' + panelName).classList.add('active');
@@ -127,8 +149,8 @@
     // Use Saved buttons
     document.querySelectorAll('.use-saved').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        const target = this.getAttribute('data-target');
-        const field = this.getAttribute('data-field');
+        var target = this.getAttribute('data-target');
+        var field = this.getAttribute('data-field');
         document.getElementById(target).value = savedContext[field] || '';
       });
     });
@@ -156,6 +178,7 @@
     document.getElementById('btn-roleRequirements').addEventListener('click', getRoleRequirements);
     document.getElementById('btn-loadPackageTemplates').addEventListener('click', loadPackageTemplates);
     document.getElementById('btn-replaceSigner').addEventListener('click', replaceSigner);
+    document.getElementById('btn-createJurisdiction').addEventListener('click', createJurisdiction);
 
     // Signing Flow
     document.getElementById('btn-getSigningData').addEventListener('click', getSigningData);
@@ -172,7 +195,7 @@
   // === SIGNATURE REQUESTS ===
 
   async function createRequest() {
-    const btn = document.getElementById('btn-createRequest');
+    var btn = document.getElementById('btn-createRequest');
 
     if (!getApiKey()) {
       alert('Please enter your API key first');
@@ -183,26 +206,46 @@
     btn.textContent = 'Creating...';
 
     try {
-      const body = {
+      // Parse optional JSON fields
+      var mergeVariables = parseJsonField('cr-mergeVariables', 'Merge Variables');
+      if (mergeVariables === null) { btn.disabled = false; btn.textContent = 'Create Request'; return; }
+
+      var metadata = parseJsonField('cr-metadata', 'Metadata');
+      if (metadata === null) { btn.disabled = false; btn.textContent = 'Create Request'; return; }
+
+      // Build expiry date if set
+      var expiresAtVal = val('cr-expiresAt');
+      var expiresAt = expiresAtVal ? new Date(expiresAtVal).toISOString() : undefined;
+
+      var body = {
         documentName: document.getElementById('cr-documentName').value,
         signerName: document.getElementById('cr-signerName').value,
-        signerEmail: document.getElementById('cr-signerEmail').value || undefined,
-        signerPhone: document.getElementById('cr-signerPhone').value || undefined,
-        verificationMethod: document.getElementById('cr-verificationMethod').value || undefined,
-        documentContent: document.getElementById('cr-documentContent').value || undefined,
-        callbackUrl: document.getElementById('cr-callbackUrl').value || undefined,
-        externalRef: document.getElementById('cr-externalRef').value || undefined
+        signerEmail: val('cr-signerEmail'),
+        signerPhone: val('cr-signerPhone'),
+        verificationMethod: val('cr-verificationMethod'),
+        documentContent: val('cr-documentContent'),
+        documentUrl: val('cr-documentUrl'),
+        waiverTemplateCode: val('cr-waiverTemplateCode'),
+        documentCategory: val('cr-documentCategory'),
+        jurisdiction: val('cr-jurisdiction'),
+        callbackUrl: val('cr-callbackUrl'),
+        externalRef: val('cr-externalRef'),
+        externalType: val('cr-externalType'),
+        createdBy: val('cr-createdBy'),
+        expiresAt: expiresAt,
+        mergeVariables: mergeVariables,
+        metadata: metadata
       };
 
       console.log('Creating request with:', body);
-      const result = await apiCall('POST', '/api/requests', body);
+      var result = await apiCall('POST', '/api/requests', body);
       console.log('Result:', result);
       showResponse('createRequest', result.status, result.data);
 
-      if (result.status === 201 && result.data.requestId) {
-        saveContext('requestId', result.data.requestId);
+      if (result.status === 201 && (result.data.id || result.data.requestId)) {
+        saveContext('requestId', result.data.id || result.data.requestId);
         if (result.data.signUrl) {
-          const token = result.data.signUrl.split('/sign/')[1];
+          var token = result.data.signUrl.split('/sign/')[1];
           if (token) saveContext('token', token);
         }
         if (result.data.referenceCode) {
@@ -219,97 +262,125 @@
   }
 
   async function listRequests() {
-    const params = new URLSearchParams();
-    const status = document.getElementById('lr-status').value;
-    const email = document.getElementById('lr-signerEmail').value;
-    const limit = document.getElementById('lr-limit').value;
+    var params = new URLSearchParams();
+    var status = val('lr-status');
+    var referenceCode = val('lr-referenceCode');
+    var signerEmail = val('lr-signerEmail');
+    var externalRef = val('lr-externalRef');
+    var externalType = val('lr-externalType');
+    var createdBy = val('lr-createdBy');
+    var jurisdiction = val('lr-jurisdiction');
+    var limit = val('lr-limit');
+    var offset = val('lr-offset');
 
     if (status) params.append('status', status);
-    if (email) params.append('signerEmail', email);
+    if (referenceCode) params.append('referenceCode', referenceCode);
+    if (signerEmail) params.append('signerEmail', signerEmail);
+    if (externalRef) params.append('externalRef', externalRef);
+    if (externalType) params.append('externalType', externalType);
+    if (createdBy) params.append('createdBy', createdBy);
+    if (jurisdiction) params.append('jurisdiction', jurisdiction);
     if (limit) params.append('limit', limit);
+    if (offset && offset !== '0') params.append('offset', offset);
 
-    const result = await apiCall('GET', '/api/requests?' + params.toString());
+    var result = await apiCall('GET', '/api/requests?' + params.toString());
     showResponse('listRequests', result.status, result.data);
   }
 
   async function getRequest() {
-    const id = document.getElementById('gr-id').value;
-    const result = await apiCall('GET', '/api/requests/' + id);
+    var id = document.getElementById('gr-id').value;
+    if (!id) { alert('Please enter a request ID'); return; }
+    var result = await apiCall('GET', '/api/requests/' + id);
     showResponse('getRequest', result.status, result.data);
   }
 
   async function getRequestByRef() {
-    const ref = document.getElementById('grr-ref').value;
-    const result = await apiCall('GET', '/api/requests/ref/' + ref);
+    var ref = document.getElementById('grr-ref').value;
+    if (!ref) { alert('Please enter a reference code'); return; }
+    var result = await apiCall('GET', '/api/requests/ref/' + ref);
     showResponse('getRequestByRef', result.status, result.data);
   }
 
   async function getSignature() {
-    const id = document.getElementById('gs-id').value;
-    const result = await apiCall('GET', '/api/requests/' + id + '/signature');
+    var id = document.getElementById('gs-id').value;
+    if (!id) { alert('Please enter a request ID'); return; }
+    var result = await apiCall('GET', '/api/requests/' + id + '/signature');
     showResponse('getSignature', result.status, result.data);
   }
 
   async function cancelRequest() {
-    const id = document.getElementById('dr-id').value;
-    const result = await apiCall('DELETE', '/api/requests/' + id);
+    var id = document.getElementById('dr-id').value;
+    if (!id) { alert('Please enter a request ID'); return; }
+    var result = await apiCall('DELETE', '/api/requests/' + id);
     showResponse('cancelRequest', result.status, result.data);
   }
 
   // === TEMPLATES ===
 
   async function createTemplate() {
-    const body = {
+    if (!getApiKey()) { alert('Please enter your API key first'); return; }
+
+    var body = {
       templateCode: document.getElementById('ct-templateCode').value,
       name: document.getElementById('ct-name').value,
-      description: document.getElementById('ct-description').value || undefined,
+      description: val('ct-description'),
       htmlContent: document.getElementById('ct-htmlContent').value,
-      jurisdiction: document.getElementById('ct-jurisdiction').value || undefined
+      jurisdiction: val('ct-jurisdiction')
     };
 
-    const result = await apiCall('POST', '/api/templates', body);
+    if (!body.templateCode || !body.name || !body.htmlContent) {
+      alert('Template Code, Name, and HTML Content are required');
+      return;
+    }
+
+    var result = await apiCall('POST', '/api/templates', body);
     showResponse('createTemplate', result.status, result.data);
   }
 
   async function listTemplates() {
-    const jurisdiction = document.getElementById('lt-jurisdiction').value;
-    const params = jurisdiction ? '?jurisdiction=' + jurisdiction : '';
-    const result = await apiCall('GET', '/api/templates' + params);
+    var jurisdiction = val('lt-jurisdiction');
+    var params = jurisdiction ? '?jurisdiction=' + encodeURIComponent(jurisdiction) : '';
+    var result = await apiCall('GET', '/api/templates' + params);
     showResponse('listTemplates', result.status, result.data);
   }
 
   async function getTemplate() {
-    const code = document.getElementById('gt-templateCode').value;
-    const result = await apiCall('GET', '/api/templates/' + code);
+    var code = document.getElementById('gt-templateCode').value;
+    if (!code) { alert('Please enter a template code'); return; }
+    var result = await apiCall('GET', '/api/templates/' + encodeURIComponent(code));
     showResponse('getTemplate', result.status, result.data);
   }
 
   async function updateTemplate() {
-    const code = document.getElementById('ut-templateCode').value;
-    const body = {};
+    if (!getApiKey()) { alert('Please enter your API key first'); return; }
 
-    const name = document.getElementById('ut-name').value;
-    const html = document.getElementById('ut-htmlContent').value;
-    const isActive = document.getElementById('ut-isActive').value;
+    var code = document.getElementById('ut-templateCode').value;
+    if (!code) { alert('Please enter a template code'); return; }
+
+    var body = {};
+    var name = val('ut-name');
+    var html = val('ut-htmlContent');
+    var isActive = val('ut-isActive');
 
     if (name) body.name = name;
     if (html) body.htmlContent = html;
     if (isActive) body.isActive = isActive === 'true';
 
-    const result = await apiCall('PUT', '/api/templates/' + code, body);
+    var result = await apiCall('PUT', '/api/templates/' + encodeURIComponent(code), body);
     showResponse('updateTemplate', result.status, result.data);
   }
 
   async function deleteTemplate() {
-    const code = document.getElementById('dt-templateCode').value;
-    const result = await apiCall('DELETE', '/api/templates/' + code);
+    var code = document.getElementById('dt-templateCode').value;
+    if (!code) { alert('Please enter a template code'); return; }
+    var result = await apiCall('DELETE', '/api/templates/' + encodeURIComponent(code));
     showResponse('deleteTemplate', result.status, result.data);
   }
 
   // === PACKAGES ===
 
   async function createPackage() {
-    const btn = document.getElementById('btn-createPackage');
+    var btn = document.getElementById('btn-createPackage');
 
     if (!getApiKey()) {
       alert('Please enter your API key first');
@@ -321,7 +392,7 @@
 
     try {
       // Parse signers JSON
-      let signers;
+      var signers;
       try {
         signers = JSON.parse(document.getElementById('cp-signers').value);
       } catch (e) {
@@ -332,34 +403,31 @@
       }
 
       // Parse merge variables JSON
-      let mergeVariables;
-      const mergeVarsText = document.getElementById('cp-mergeVariables').value.trim();
-      if (mergeVarsText) {
-        try {
-          mergeVariables = JSON.parse(mergeVarsText);
-        } catch (e) {
-          alert('Invalid merge variables JSON: ' + e.message);
-          btn.disabled = false;
-          btn.textContent = 'Create Package';
-          return;
-        }
-      }
+      var mergeVariables = parseJsonField('cp-mergeVariables', 'Merge Variables');
+      if (mergeVariables === null) { btn.disabled = false; btn.textContent = 'Create Package'; return; }
 
-      const body = {
-        templateCode: document.getElementById('cp-templateCode').value || undefined,
-        documentName: document.getElementById('cp-documentName').value || undefined,
-        documentContent: document.getElementById('cp-documentContent').value || undefined,
-        jurisdiction: document.getElementById('cp-jurisdiction').value || undefined,
-        eventDate: document.getElementById('cp-eventDate').value || undefined,
+      // Build expiry date if set
+      var expiresAtVal = val('cp-expiresAt');
+      var expiresAt = expiresAtVal ? new Date(expiresAtVal).toISOString() : undefined;
+
+      var body = {
+        templateCode: val('cp-templateCode'),
+        documentName: val('cp-documentName'),
+        documentContent: val('cp-documentContent'),
+        jurisdiction: val('cp-jurisdiction'),
+        eventDate: val('cp-eventDate'),
         mergeVariables: mergeVariables,
-        externalRef: document.getElementById('cp-externalRef').value || undefined,
-        verificationMethod: document.getElementById('cp-verificationMethod').value || undefined,
-        callbackUrl: document.getElementById('cp-callbackUrl').value || undefined,
+        externalRef: val('cp-externalRef'),
+        externalType: val('cp-externalType'),
+        verificationMethod: val('cp-verificationMethod'),
+        callbackUrl: val('cp-callbackUrl'),
+        createdBy: val('cp-createdBy'),
+        expiresAt: expiresAt,
         signers: signers
       };
 
       console.log('Creating package with:', body);
-      const result = await apiCall('POST', '/api/packages', body);
+      var result = await apiCall('POST', '/api/packages', body);
       console.log('Result:', result);
       showResponse('createPackage', result.status, result.data);
 
@@ -367,6 +435,15 @@
         saveContext('packageId', result.data.packageId);
         if (result.data.packageCode) {
           saveContext('packageCode', result.data.packageCode);
+        }
+        // Also save the first signer's token if available
+        if (result.data.signatureRequests && result.data.signatureRequests.length > 0) {
+          var firstReq = result.data.signatureRequests[0];
+          if (firstReq.requestId) saveContext('requestId', firstReq.requestId);
+          if (firstReq.signUrl) {
+            var token = firstReq.signUrl.split('/sign/')[1];
+            if (token) saveContext('token', token);
+          }
         }
       }
     } catch (err) {
@@ -379,36 +456,38 @@
   }
 
   async function getPackage() {
-    const id = document.getElementById('gp-id').value;
+    var id = document.getElementById('gp-id').value;
     if (!id) {
       alert('Please enter a package ID or code');
       return;
     }
-    const result = await apiCall('GET', '/api/packages/' + id);
+    var result = await apiCall('GET', '/api/packages/' + encodeURIComponent(id));
     showResponse('getPackage', result.status, result.data);
   }
 
   async function listPackages() {
-    const params = new URLSearchParams();
-    const status = document.getElementById('lp-status').value;
-    const externalRef = document.getElementById('lp-externalRef').value;
-    const limit = document.getElementById('lp-limit').value;
+    var params = new URLSearchParams();
+    var status = val('lp-status');
+    var externalRef = val('lp-externalRef');
+    var limit = val('lp-limit');
+    var offset = val('lp-offset');
 
     if (status) params.append('status', status);
     if (externalRef) params.append('externalRef', externalRef);
     if (limit) params.append('limit', limit);
+    if (offset && offset !== '0') params.append('offset', offset);
 
-    const result = await apiCall('GET', '/api/packages?' + params.toString());
+    var result = await apiCall('GET', '/api/packages?' + params.toString());
     showResponse('listPackages', result.status, result.data);
   }
 
   async function listJurisdictions() {
-    const result = await apiCall('GET', '/api/jurisdictions');
+    var result = await apiCall('GET', '/api/jurisdictions');
     showResponse('listJurisdictions', result.status, result.data);
   }
 
   async function getRoleRequirements() {
-    const result = await apiCall('GET', '/api/roles/requirements');
+    var result = await apiCall('GET', '/api/roles/requirements');
     showResponse('roleRequirements', result.status, result.data);
   }
 
@@ -418,13 +497,13 @@
       return;
     }
 
-    const result = await apiCall('GET', '/api/templates');
+    var result = await apiCall('GET', '/api/templates');
     if (result.status === 200 && Array.isArray(result.data)) {
-      const select = document.getElementById('cp-templateCode');
+      var select = document.getElementById('cp-templateCode');
       // Keep the first option (no template)
       select.innerHTML = '<option value="">-- No template (use custom content) --</option>';
       result.data.forEach(function(template) {
-        const option = document.createElement('option');
+        var option = document.createElement('option');
         option.value = template.templateCode || template.template_code;
         option.textContent = (template.name || template.templateCode) +
           (template.jurisdiction ? ' (' + template.jurisdiction + ')' : '');
@@ -434,17 +513,19 @@
   }
 
   async function replaceSigner() {
-    const packageId = document.getElementById('rs-packageId').value;
-    const roleId = document.getElementById('rs-roleId').value;
+    if (!getApiKey()) { alert('Please enter your API key first'); return; }
+
+    var packageId = document.getElementById('rs-packageId').value;
+    var roleId = document.getElementById('rs-roleId').value;
 
     if (!packageId || !roleId) {
       alert('Package ID and Role ID are required');
       return;
     }
 
-    const name = document.getElementById('rs-name').value;
-    const email = document.getElementById('rs-email').value;
-    const phone = document.getElementById('rs-phone').value;
+    var name = document.getElementById('rs-name').value;
+    var email = document.getElementById('rs-email').value;
+    var phone = document.getElementById('rs-phone').value;
 
     if (!name) {
       alert('New signer name is required');
@@ -456,68 +537,97 @@
       return;
     }
 
-    const body = {
+    var body = {
       name: name,
       email: email || undefined,
       phone: phone || undefined,
-      verificationMethod: document.getElementById('rs-verificationMethod').value || undefined
+      dateOfBirth: val('rs-dateOfBirth'),
+      verificationMethod: val('rs-verificationMethod')
     };
 
-    const result = await apiCall('PUT', '/api/packages/' + packageId + '/roles/' + roleId, body);
+    var result = await apiCall('PUT', '/api/packages/' + encodeURIComponent(packageId) + '/roles/' + encodeURIComponent(roleId), body);
     showResponse('replaceSigner', result.status, result.data);
+  }
+
+  async function createJurisdiction() {
+    if (!getApiKey()) { alert('Please enter your API key first'); return; }
+
+    var jurisdictionCode = document.getElementById('cj-jurisdictionCode').value;
+    var jurisdictionName = document.getElementById('cj-jurisdictionName').value;
+    var addendumHtml = document.getElementById('cj-addendumHtml').value;
+
+    if (!jurisdictionCode || !jurisdictionName || !addendumHtml) {
+      alert('Jurisdiction Code, Name, and Addendum HTML are all required');
+      return;
+    }
+
+    var body = {
+      jurisdictionCode: jurisdictionCode,
+      jurisdictionName: jurisdictionName,
+      addendumHtml: addendumHtml
+    };
+
+    var result = await apiCall('POST', '/api/jurisdictions', body);
+    showResponse('createJurisdiction', result.status, result.data);
   }
 
   // === SIGNING FLOW ===
 
   async function getSigningData() {
-    const token = document.getElementById('spd-token').value;
-    const result = await apiCall('GET', '/sign/' + token + '/data', null, false);
+    var token = document.getElementById('spd-token').value;
+    if (!token) { alert('Please enter a signing token'); return; }
+    var result = await apiCall('GET', '/sign/' + token + '/data', null, false);
     showResponse('getSigningData', result.status, result.data);
   }
 
   async function sendVerification() {
-    const token = document.getElementById('sv-token').value;
-    const method = document.getElementById('sv-method').value;
-    const result = await apiCall('POST', '/sign/' + token + '/verify', { method: method }, false);
+    var token = document.getElementById('sv-token').value;
+    if (!token) { alert('Please enter a signing token'); return; }
+    var method = document.getElementById('sv-method').value;
+    var result = await apiCall('POST', '/sign/' + token + '/verify', { method: method }, false);
     showResponse('sendVerification', result.status, result.data);
   }
 
   async function confirmVerification() {
-    const token = document.getElementById('cv-token').value;
-    const code = document.getElementById('cv-code').value;
-    const result = await apiCall('POST', '/sign/' + token + '/confirm', { code: code }, false);
+    var token = document.getElementById('cv-token').value;
+    if (!token) { alert('Please enter a signing token'); return; }
+    var code = document.getElementById('cv-code').value;
+    if (!code) { alert('Please enter the verification code'); return; }
+    var result = await apiCall('POST', '/sign/' + token + '/confirm', { code: code }, false);
     showResponse('confirmVerification', result.status, result.data);
   }
 
   async function submitSignature() {
-    const token = document.getElementById('ss-token').value;
-    const body = {
+    var token = document.getElementById('ss-token').value;
+    if (!token) { alert('Please enter a signing token'); return; }
+    var body = {
       signatureType: document.getElementById('ss-signatureType').value,
-      typedName: document.getElementById('ss-typedName').value || undefined,
+      typedName: val('ss-typedName'),
       consentText: document.getElementById('ss-consentText').value
     };
-    const result = await apiCall('POST', '/sign/' + token + '/submit', body, false);
+    var result = await apiCall('POST', '/sign/' + token + '/submit', body, false);
     showResponse('submitSignature', result.status, result.data);
   }
 
   function openSigningPage() {
-    const token = document.getElementById('op-token').value;
+    var token = document.getElementById('op-token').value;
+    if (!token) { alert('Please enter a signing token'); return; }
     window.open('/sign/' + token, '_blank');
   }
 
   // === FULL TEST ===
 
   function ftLog(msg) {
-    const el = document.getElementById('ft-log-body');
+    var el = document.getElementById('ft-log-body');
     el.textContent += new Date().toLocaleTimeString() + ' - ' + msg + '\n';
     el.scrollTop = el.scrollHeight;
   }
 
   async function runFullTest() {
-    const email = document.getElementById('ft-email').value;
-    const phone = document.getElementById('ft-phone').value;
-    const name = document.getElementById('ft-name').value;
-    const method = document.getElementById('ft-method').value;
+    var email = document.getElementById('ft-email').value;
+    var phone = document.getElementById('ft-phone').value;
+    var name = document.getElementById('ft-name').value;
+    var method = document.getElementById('ft-method').value;
 
     if (!email && method === 'email') {
       alert('Email is required for email verification');
@@ -536,7 +646,7 @@
 
     // Step 1: Create request
     ftLog('Step 1: Creating signature request...');
-    const createBody = {
+    var createBody = {
       documentName: 'Full Test Document',
       signerName: name,
       signerEmail: email || undefined,
@@ -545,7 +655,7 @@
       documentContent: '<h2>Test Document</h2><p>This is a full end-to-end test.</p>'
     };
 
-    const createResult = await apiCall('POST', '/api/requests', createBody);
+    var createResult = await apiCall('POST', '/api/requests', createBody);
 
     if (createResult.status !== 201) {
       ftLog('ERROR: Failed to create request - ' + JSON.stringify(createResult.data));
@@ -553,15 +663,19 @@
       return;
     }
 
-    ftLog('Request created! ID: ' + createResult.data.requestId);
+    var requestId = createResult.data.id || createResult.data.requestId;
+    ftLog('Request created! ID: ' + requestId);
     fullTestToken = createResult.data.signUrl.split('/sign/')[1];
     ftLog('Token: ' + fullTestToken);
-    saveContext('requestId', createResult.data.requestId);
+    saveContext('requestId', requestId);
     saveContext('token', fullTestToken);
+    if (createResult.data.referenceCode) {
+      saveContext('reference', createResult.data.referenceCode);
+    }
 
     // Step 2: Send verification
     ftLog('Step 2: Sending verification code via ' + method + '...');
-    const verifyResult = await apiCall('POST', '/sign/' + fullTestToken + '/verify', { method: method }, false);
+    var verifyResult = await apiCall('POST', '/sign/' + fullTestToken + '/verify', { method: method }, false);
 
     if (verifyResult.status !== 200) {
       ftLog('ERROR: Failed to send verification - ' + JSON.stringify(verifyResult.data));
@@ -576,7 +690,7 @@
   }
 
   async function continueFullTest() {
-    const code = document.getElementById('ft-code').value;
+    var code = document.getElementById('ft-code').value;
 
     if (!code || code.length !== 6) {
       alert('Please enter a 6-digit code');
@@ -585,7 +699,7 @@
 
     // Step 3: Confirm code
     ftLog('Step 3: Confirming verification code...');
-    const confirmResult = await apiCall('POST', '/sign/' + fullTestToken + '/confirm', { code: code }, false);
+    var confirmResult = await apiCall('POST', '/sign/' + fullTestToken + '/confirm', { code: code }, false);
 
     if (confirmResult.status !== 200) {
       ftLog('ERROR: Failed to confirm code - ' + JSON.stringify(confirmResult.data));
@@ -596,13 +710,13 @@
 
     // Step 4: Submit signature
     ftLog('Step 4: Submitting signature...');
-    const signBody = {
+    var signBody = {
       signatureType: 'typed',
       typedName: document.getElementById('ft-name').value,
       consentText: 'I agree to sign this document electronically'
     };
 
-    const signResult = await apiCall('POST', '/sign/' + fullTestToken + '/submit', signBody, false);
+    var signResult = await apiCall('POST', '/sign/' + fullTestToken + '/submit', signBody, false);
 
     if (signResult.status !== 200) {
       ftLog('ERROR: Failed to submit signature - ' + JSON.stringify(signResult.data));
