@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { config } from '../config';
 
 let db: Database.Database | null = null;
 
@@ -48,10 +50,12 @@ function initializeTables(db: Database.Database): void {
       expires_at TEXT,
       signed_at TEXT,
       callback_url TEXT,
-      created_by TEXT
+      created_by TEXT,
+      tenant_id TEXT NOT NULL DEFAULT 'default-tenant'
     );
 
     CREATE INDEX IF NOT EXISTS idx_reference_code ON signature_requests(reference_code);
+    CREATE INDEX IF NOT EXISTS idx_sr_tenant ON signature_requests(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_external_ref ON signature_requests(external_ref);
     CREATE INDEX IF NOT EXISTS idx_status ON signature_requests(status);
     CREATE INDEX IF NOT EXISTS idx_signer_email ON signature_requests(signer_email);
@@ -97,10 +101,12 @@ function initializeTables(db: Database.Database): void {
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      created_by TEXT
+      created_by TEXT,
+      tenant_id TEXT NOT NULL DEFAULT 'default-tenant'
     );
 
     CREATE INDEX IF NOT EXISTS idx_template_code ON waiver_templates(template_code);
+    CREATE INDEX IF NOT EXISTS idx_wt_tenant ON waiver_templates(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_template_jurisdiction ON waiver_templates(jurisdiction);
 
     -- Signing packages for multi-party signing
@@ -124,10 +130,12 @@ function initializeTables(db: Database.Database): void {
       expires_at TEXT,
       completed_at TEXT,
       callback_url TEXT,
-      created_by TEXT
+      created_by TEXT,
+      tenant_id TEXT NOT NULL DEFAULT 'default-tenant'
     );
 
     CREATE INDEX IF NOT EXISTS idx_pkg_package_code ON signing_packages(package_code);
+    CREATE INDEX IF NOT EXISTS idx_sp_tenant ON signing_packages(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_pkg_external_ref ON signing_packages(external_ref);
     CREATE INDEX IF NOT EXISTS idx_pkg_status ON signing_packages(status);
 
@@ -163,14 +171,34 @@ function initializeTables(db: Database.Database): void {
       addendum_html TEXT NOT NULL,
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      tenant_id TEXT NOT NULL DEFAULT 'default-tenant'
     );
 
     CREATE INDEX IF NOT EXISTS idx_jurisdiction_code ON jurisdiction_addendums(jurisdiction_code);
+    CREATE INDEX IF NOT EXISTS idx_ja_tenant ON jurisdiction_addendums(tenant_id);
+
+    -- API keys for multi-tenant access
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      api_key TEXT NOT NULL UNIQUE,
+      tenant_id TEXT NOT NULL,
+      tenant_name TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      permissions TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_api_key ON api_keys(api_key);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
   `);
 
   // Run migrations for existing databases
   migrateExistingTables(db);
+
+  // Seed default API key
+  seedDefaultApiKey(db);
 }
 
 function migrateExistingTables(db: Database.Database): void {
@@ -226,6 +254,28 @@ function migrateExistingTables(db: Database.Database): void {
     db.exec(`ALTER TABLE signature_requests ADD COLUMN roles_display TEXT`);
   }
 
+  // Migration: Add tenant_id to signature_requests
+  if (!columns.includes('tenant_id')) {
+    db.exec(`ALTER TABLE signature_requests ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default-tenant'`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_sr_tenant ON signature_requests(tenant_id)`);
+  }
+
+  // Migration: Add tenant_id to waiver_templates
+  const wtTableInfo = db.prepare("PRAGMA table_info(waiver_templates)").all() as Array<{ name: string }>;
+  const wtColumns = wtTableInfo.map(col => col.name);
+  if (!wtColumns.includes('tenant_id')) {
+    db.exec(`ALTER TABLE waiver_templates ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default-tenant'`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_wt_tenant ON waiver_templates(tenant_id)`);
+  }
+
+  // Migration: Add tenant_id to jurisdiction_addendums
+  const jaTableInfo = db.prepare("PRAGMA table_info(jurisdiction_addendums)").all() as Array<{ name: string }>;
+  const jaColumns = jaTableInfo.map(col => col.name);
+  if (!jaColumns.includes('tenant_id')) {
+    db.exec(`ALTER TABLE jurisdiction_addendums ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default-tenant'`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_ja_tenant ON jurisdiction_addendums(tenant_id)`);
+  }
+
   // Migrate signing_packages table
   migratePackagesTables(db);
 }
@@ -256,6 +306,12 @@ function migratePackagesTables(db: Database.Database): void {
     db.exec(`ALTER TABLE signing_roles ADD COLUMN is_package_admin INTEGER DEFAULT 0`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_package_admin ON signing_roles(package_id, is_package_admin)`);
   }
+
+  // Migration: Add tenant_id to signing_packages
+  if (!pkgColumns.includes('tenant_id')) {
+    db.exec(`ALTER TABLE signing_packages ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default-tenant'`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_sp_tenant ON signing_packages(tenant_id)`);
+  }
 }
 
 function generateReferenceCode(): string {
@@ -265,6 +321,35 @@ function generateReferenceCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+function seedDefaultApiKey(db: Database.Database): void {
+  const defaultKey = config.apiKey || 'demo-api-key';
+  const existing = db.prepare("SELECT id FROM api_keys WHERE api_key = ?").get(defaultKey) as { id: string } | undefined;
+  if (!existing) {
+    db.prepare(
+      `INSERT INTO api_keys (id, api_key, tenant_id, tenant_name, is_active)
+       VALUES (?, ?, 'default-tenant', 'Default Tenant', 1)`
+    ).run(uuidv4(), defaultKey);
+  }
+
+  // Seed additional API keys from environment
+  // Format: TENANT_KEYS=name1:key1,name2:key2
+  const tenantKeys = process.env.TENANT_KEYS;
+  if (tenantKeys) {
+    for (const entry of tenantKeys.split(',')) {
+      const [name, key] = entry.split(':');
+      if (name && key) {
+        const existingKey = db.prepare("SELECT id FROM api_keys WHERE api_key = ?").get(key.trim()) as { id: string } | undefined;
+        if (!existingKey) {
+          db.prepare(
+            `INSERT INTO api_keys (id, api_key, tenant_id, tenant_name, is_active)
+             VALUES (?, ?, ?, ?, 1)`
+          ).run(uuidv4(), key.trim(), uuidv4(), name.trim());
+        }
+      }
+    }
+  }
 }
 
 export function closeSqliteDb(): void {

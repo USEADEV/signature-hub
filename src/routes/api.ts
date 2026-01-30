@@ -106,7 +106,7 @@ router.post('/requests', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await createSignatureRequest(input);
+    const result = await createSignatureRequest(input, req.tenantId!);
     res.status(201).json(result);
   } catch (error) {
     console.error('Failed to create signature request:', error);
@@ -117,7 +117,7 @@ router.post('/requests', async (req: Request, res: Response) => {
 // Get a signature request by ID
 router.get('/requests/:id', async (req: Request, res: Response) => {
   try {
-    const request = await getRequest(req.params.id);
+    const request = await getRequest(req.params.id, req.tenantId!);
     if (!request) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -133,7 +133,7 @@ router.get('/requests/:id', async (req: Request, res: Response) => {
 // Get a signature request by reference code
 router.get('/requests/ref/:referenceCode', async (req: Request, res: Response) => {
   try {
-    const request = await getRequestByRef(req.params.referenceCode);
+    const request = await getRequestByRef(req.params.referenceCode, req.tenantId!);
     if (!request) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -149,6 +149,12 @@ router.get('/requests/ref/:referenceCode', async (req: Request, res: Response) =
 // Get signature details for a request
 router.get('/requests/:id/signature', async (req: Request, res: Response) => {
   try {
+    // Verify tenant ownership first
+    const request = await getRequest(req.params.id, req.tenantId!);
+    if (!request) {
+      res.status(404).json({ error: 'Request not found' });
+      return;
+    }
     const signature = await getSignature(req.params.id);
     if (!signature) {
       res.status(404).json({ error: 'Signature not found' });
@@ -176,7 +182,7 @@ router.get('/requests', async (req: Request, res: Response) => {
       offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined,
     };
 
-    const requests = await listRequests(filters);
+    const requests = await listRequests(filters, req.tenantId!);
     res.json(requests);
   } catch (error) {
     console.error('Failed to list requests:', error);
@@ -187,7 +193,7 @@ router.get('/requests', async (req: Request, res: Response) => {
 // Cancel a signature request
 router.delete('/requests/:id', async (req: Request, res: Response) => {
   try {
-    const request = await getRequest(req.params.id);
+    const request = await getRequest(req.params.id, req.tenantId!);
     if (!request) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -198,7 +204,7 @@ router.delete('/requests/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    await updateRequestStatus(req.params.id, 'cancelled');
+    await updateRequestStatus(req.params.id, 'cancelled', req.tenantId!);
     res.json({ success: true, message: 'Request cancelled' });
   } catch (error) {
     console.error('Failed to cancel request:', error);
@@ -237,13 +243,13 @@ router.post('/templates', async (req: Request, res: Response) => {
     }
 
     // Check for duplicate
-    const existing = await getTemplateByCode(input.templateCode);
+    const existing = await getTemplateByCode(input.templateCode, req.tenantId!);
     if (existing) {
       res.status(409).json({ error: 'Template with this code already exists' });
       return;
     }
 
-    const template = await createTemplate(input);
+    const template = await createTemplate(input, req.tenantId!);
     res.status(201).json(template);
   } catch (error) {
     console.error('Failed to create template:', error);
@@ -254,7 +260,7 @@ router.post('/templates', async (req: Request, res: Response) => {
 // Get a template by code
 router.get('/templates/:templateCode', async (req: Request, res: Response) => {
   try {
-    const template = await getTemplateByCode(req.params.templateCode);
+    const template = await getTemplateByCode(req.params.templateCode, req.tenantId!);
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
@@ -277,7 +283,7 @@ router.put('/templates/:templateCode', async (req: Request, res: Response) => {
       isActive: req.body.isActive,
     };
 
-    const template = await updateTemplate(req.params.templateCode, input);
+    const template = await updateTemplate(req.params.templateCode, input, req.tenantId!);
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
@@ -293,7 +299,7 @@ router.put('/templates/:templateCode', async (req: Request, res: Response) => {
 router.get('/templates', async (req: Request, res: Response) => {
   try {
     const jurisdiction = req.query.jurisdiction as string | undefined;
-    const templates = await listTemplates(jurisdiction);
+    const templates = await listTemplates(jurisdiction, req.tenantId!);
     res.json(templates);
   } catch (error) {
     console.error('Failed to list templates:', error);
@@ -304,13 +310,13 @@ router.get('/templates', async (req: Request, res: Response) => {
 // Delete (deactivate) a template
 router.delete('/templates/:templateCode', async (req: Request, res: Response) => {
   try {
-    const template = await getTemplateByCode(req.params.templateCode);
+    const template = await getTemplateByCode(req.params.templateCode, req.tenantId!);
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    await deleteTemplate(req.params.templateCode);
+    await deleteTemplate(req.params.templateCode, req.tenantId!);
     res.json({ success: true, message: 'Template deactivated' });
   } catch (error) {
     console.error('Failed to delete template:', error);
@@ -370,7 +376,7 @@ router.post('/packages', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await createPackage(input);
+    const result = await createPackage(input, req.tenantId!);
     res.status(201).json(result);
   } catch (error) {
     console.error('Failed to create package:', error);
@@ -387,16 +393,16 @@ router.post('/packages', async (req: Request, res: Response) => {
 router.get('/packages/:id', async (req: Request, res: Response) => {
   try {
     // Try by ID first, then by code
-    let pkg = await getPackageById(req.params.id);
+    let pkg = await getPackageById(req.params.id, req.tenantId!);
     if (!pkg) {
-      pkg = await getPackageByCode(req.params.id);
+      pkg = await getPackageByCode(req.params.id, req.tenantId!);
     }
     if (!pkg) {
       res.status(404).json({ error: 'Package not found' });
       return;
     }
 
-    const status = await getPackageStatus(pkg.id);
+    const status = await getPackageStatus(pkg.id, req.tenantId!);
     res.json(status);
   } catch (error) {
     console.error('Failed to get package:', error);
@@ -414,7 +420,7 @@ router.get('/packages', async (req: Request, res: Response) => {
       offset: req.query.offset ? parseInt(req.query.offset as string, 10) : undefined,
     };
 
-    const packages = await listPackages(filters);
+    const packages = await listPackages(filters, req.tenantId!);
     res.json(packages);
   } catch (error) {
     console.error('Failed to list packages:', error);
@@ -444,16 +450,16 @@ router.put('/packages/:id/roles/:roleId', async (req: Request, res: Response) =>
     }
 
     // Try to find package by ID or code
-    let pkg = await getPackageById(req.params.id);
+    let pkg = await getPackageById(req.params.id, req.tenantId!);
     if (!pkg) {
-      pkg = await getPackageByCode(req.params.id);
+      pkg = await getPackageByCode(req.params.id, req.tenantId!);
     }
     if (!pkg) {
       res.status(404).json({ error: 'Package not found' });
       return;
     }
 
-    const result = await replaceSigner(pkg.id, req.params.roleId, input);
+    const result = await replaceSigner(pkg.id, req.params.roleId, input, req.tenantId!);
     res.json(result);
   } catch (error) {
     console.error('Failed to replace signer:', error);
@@ -493,7 +499,7 @@ router.post('/jurisdictions', async (req: Request, res: Response) => {
       return;
     }
 
-    const addendum = await upsertJurisdictionAddendum(jurisdictionCode, jurisdictionName, addendumHtml);
+    const addendum = await upsertJurisdictionAddendum(jurisdictionCode, jurisdictionName, addendumHtml, req.tenantId!);
     res.status(201).json(addendum);
   } catch (error) {
     console.error('Failed to create jurisdiction:', error);
@@ -504,7 +510,7 @@ router.post('/jurisdictions', async (req: Request, res: Response) => {
 // List jurisdictions
 router.get('/jurisdictions', async (req: Request, res: Response) => {
   try {
-    const jurisdictions = await listJurisdictions();
+    const jurisdictions = await listJurisdictions(req.tenantId!);
     res.json(jurisdictions);
   } catch (error) {
     console.error('Failed to list jurisdictions:', error);

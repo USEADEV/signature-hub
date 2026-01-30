@@ -1,3 +1,23 @@
+// Extend Express Request to include tenantId from API key auth
+declare global {
+  namespace Express {
+    interface Request {
+      tenantId?: string;
+    }
+  }
+}
+
+export interface ApiKey {
+  id: string;
+  api_key: string;
+  tenant_id: string;
+  tenant_name: string;
+  is_active: boolean;
+  permissions?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export type VerificationMethod = 'email' | 'sms' | 'both';
 
 export type RequestStatus = 'pending' | 'sent' | 'viewed' | 'verified' | 'signed' | 'expired' | 'cancelled';
@@ -37,6 +57,7 @@ export interface SignatureRequest {
   created_by?: string;
   package_id?: string;
   roles_display?: string;
+  tenant_id?: string;
 }
 
 export interface SignatureToken {
@@ -76,6 +97,7 @@ export interface WaiverTemplate {
   created_at: Date;
   updated_at: Date;
   created_by?: string;
+  tenant_id?: string;
 }
 
 export interface CreateRequestInput {
@@ -224,6 +246,7 @@ export interface SigningPackage {
   completed_at?: Date;
   callback_url?: string;
   created_by?: string;
+  tenant_id?: string;
 }
 
 export interface SigningRole {
@@ -251,6 +274,7 @@ export interface JurisdictionAddendum {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  tenant_id?: string;
 }
 
 export interface SignerInput {

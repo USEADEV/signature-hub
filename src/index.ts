@@ -5,6 +5,7 @@ import path from 'path';
 import { config, validateConfig } from './config';
 import apiRoutes from './routes/api';
 import signRoutes from './routes/sign';
+import adminRoutes from './routes/admin';
 import { closePool } from './db/connection';
 
 const app = express();
@@ -46,6 +47,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api', apiRoutes);
 app.use('/sign', signRoutes);
+app.use('/admin', adminRoutes);
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

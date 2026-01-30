@@ -28,8 +28,8 @@ import { onSignatureCompleted } from './package';
 const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
 const sendSignatureConfirmationSms = config.smsProvider === 'mandrill' ? sendConfirmMandrill : sendConfirmTwilio;
 
-export async function createSignatureRequest(input: CreateRequestInput): Promise<CreateRequestResponse> {
-  const { request, token } = await dbCreateRequest(input);
+export async function createSignatureRequest(input: CreateRequestInput, tenantId: string): Promise<CreateRequestResponse> {
+  const { request, token } = await dbCreateRequest(input, tenantId);
 
   const signUrl = `${config.baseUrl}/sign/${token.token}`;
 
@@ -81,12 +81,12 @@ export async function createSignatureRequest(input: CreateRequestInput): Promise
   };
 }
 
-export async function getRequest(id: string): Promise<SignatureRequest | null> {
-  return getRequestById(id);
+export async function getRequest(id: string, tenantId: string): Promise<SignatureRequest | null> {
+  return getRequestById(id, tenantId);
 }
 
-export async function getRequestByRef(referenceCode: string): Promise<SignatureRequest | null> {
-  return getRequestByReferenceCode(referenceCode);
+export async function getRequestByRef(referenceCode: string, tenantId: string): Promise<SignatureRequest | null> {
+  return getRequestByReferenceCode(referenceCode, tenantId);
 }
 
 export async function getRequestStatus(request: SignatureRequest): Promise<RequestStatusResponse> {

@@ -52,6 +52,7 @@ export const config = {
   },
 
   apiKey: process.env.API_KEY || 'demo-api-key',
+  adminApiKey: process.env.ADMIN_API_KEY || '',
 
   verification: {
     codeLength: 6,
@@ -83,6 +84,9 @@ export function validateConfig(): void {
     }
     if (config.apiKey === 'demo-api-key') {
       errors.push('API_KEY must be set to a secure value in production');
+    }
+    if (!config.adminApiKey) {
+      console.warn('WARNING: ADMIN_API_KEY is not set. Admin API endpoints will be unavailable.');
     }
   }
 

@@ -185,7 +185,13 @@ function buildSignerVariables(
 }
 
 // Get jurisdiction addendum if available
-export async function getJurisdictionAddendum(jurisdictionCode: string): Promise<JurisdictionAddendum | null> {
+export async function getJurisdictionAddendum(jurisdictionCode: string, tenantId?: string): Promise<JurisdictionAddendum | null> {
+  if (tenantId) {
+    return sqliteQueryOne<JurisdictionAddendum>(
+      `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = 1 AND tenant_id = ?`,
+      [jurisdictionCode, tenantId]
+    );
+  }
   return sqliteQueryOne<JurisdictionAddendum>(
     `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = 1`,
     [jurisdictionCode]
@@ -227,7 +233,7 @@ function consolidateSigners(signers: SignerInput[]): Map<string, SignerInput[]> 
 }
 
 // Create a signing package with multiple signers
-export async function createPackage(input: CreatePackageInput): Promise<CreatePackageResponse> {
+export async function createPackage(input: CreatePackageInput, tenantId: string): Promise<CreatePackageResponse> {
   // Validate signer ages against role requirements
   const ageValidation = validateSignerAges(input.signers, input.eventDate);
   if (!ageValidation.valid) {
@@ -255,7 +261,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
   // Get jurisdiction addendum and add as merge variable
   let jurisdictionAddendumHtml = '';
   if (input.jurisdiction) {
-    const addendum = await getJurisdictionAddendum(input.jurisdiction);
+    const addendum = await getJurisdictionAddendum(input.jurisdiction, tenantId);
     if (addendum) {
       jurisdictionAddendumHtml = `<div class="jurisdiction-addendum">\n<h4>${addendum.jurisdiction_name} Legal Notice</h4>\n${addendum.addendum_html}\n</div>`;
       baseMergeVariables.jurisdictionAddendum = jurisdictionAddendumHtml;
@@ -270,7 +276,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
   let templateVersion: number | null = null;
 
   if (input.templateCode) {
-    const template = await getTemplateByCode(input.templateCode);
+    const template = await getTemplateByCode(input.templateCode, tenantId);
     if (template) {
       baseDocumentContent = template.html_content;
       documentName = documentName || template.name;
@@ -288,7 +294,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     const hasJurisdictionVar = (input.documentContent || '').includes('{{jurisdictionAddendum}}');
     if (!hasJurisdictionVar && input.templateCode) {
       // Check if template had the variable
-      const template = await getTemplateByCode(input.templateCode);
+      const template = await getTemplateByCode(input.templateCode, tenantId);
       if (template && !template.html_content.includes('{{jurisdictionAddendum}}')) {
         baseDocumentContent += `\n${jurisdictionAddendumHtml}`;
       }
@@ -308,8 +314,8 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
     `INSERT INTO signing_packages
      (id, package_code, external_ref, external_type, template_code, template_version,
       document_name, document_content, jurisdiction, merge_variables, event_date, status,
-      total_signers, completed_signers, expires_at, callback_url, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?)`,
+      total_signers, completed_signers, expires_at, callback_url, created_by, tenant_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?)`,
     [
       packageId,
       packageCode,
@@ -326,6 +332,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
       expiresAt.toISOString(),
       input.callbackUrl || null,
       input.createdBy || null,
+      tenantId,
     ]
   );
 
@@ -363,7 +370,7 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
       jurisdiction: input.jurisdiction,
       callbackUrl: input.callbackUrl,
       createdBy: input.createdBy,
-    });
+    }, tenantId);
 
     // Update the request with package info and roles
     sqliteRun(
@@ -428,21 +435,31 @@ export async function createPackage(input: CreatePackageInput): Promise<CreatePa
 }
 
 // Get package by ID
-export async function getPackageById(id: string): Promise<SigningPackage | null> {
-  const pkg = sqliteQueryOne<SigningPackage>(
+export async function getPackageById(id: string, tenantId?: string): Promise<SigningPackage | null> {
+  if (tenantId) {
+    return sqliteQueryOne<SigningPackage>(
+      `SELECT * FROM signing_packages WHERE id = ? AND tenant_id = ?`,
+      [id, tenantId]
+    );
+  }
+  return sqliteQueryOne<SigningPackage>(
     `SELECT * FROM signing_packages WHERE id = ?`,
     [id]
   );
-  return pkg;
 }
 
 // Get package by code
-export async function getPackageByCode(packageCode: string): Promise<SigningPackage | null> {
-  const pkg = sqliteQueryOne<SigningPackage>(
+export async function getPackageByCode(packageCode: string, tenantId?: string): Promise<SigningPackage | null> {
+  if (tenantId) {
+    return sqliteQueryOne<SigningPackage>(
+      `SELECT * FROM signing_packages WHERE package_code = ? AND tenant_id = ?`,
+      [packageCode, tenantId]
+    );
+  }
+  return sqliteQueryOne<SigningPackage>(
     `SELECT * FROM signing_packages WHERE package_code = ?`,
     [packageCode]
   );
-  return pkg;
 }
 
 // Get roles for a package
@@ -459,8 +476,8 @@ export async function getPackageRoles(packageId: string): Promise<SigningRole[]>
 }
 
 // Get package status with all signer details
-export async function getPackageStatus(packageId: string): Promise<PackageStatusResponse | null> {
-  const pkg = await getPackageById(packageId);
+export async function getPackageStatus(packageId: string, tenantId?: string): Promise<PackageStatusResponse | null> {
+  const pkg = await getPackageById(packageId, tenantId);
   if (!pkg) return null;
 
   const roles = await getPackageRoles(packageId);
@@ -568,14 +585,14 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
 }
 
 // List packages with optional filters
-export async function listPackages(filters?: {
+export async function listPackages(filters: {
   status?: PackageStatus;
   externalRef?: string;
   limit?: number;
   offset?: number;
-}): Promise<SigningPackage[]> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
+} | undefined, tenantId: string): Promise<SigningPackage[]> {
+  const conditions: string[] = ['tenant_id = ?'];
+  const params: unknown[] = [tenantId];
 
   if (filters?.status) {
     conditions.push('status = ?');
@@ -600,33 +617,35 @@ export async function listPackages(filters?: {
 export async function upsertJurisdictionAddendum(
   jurisdictionCode: string,
   jurisdictionName: string,
-  addendumHtml: string
+  addendumHtml: string,
+  tenantId: string
 ): Promise<JurisdictionAddendum> {
-  const existing = await getJurisdictionAddendum(jurisdictionCode);
+  const existing = await getJurisdictionAddendum(jurisdictionCode, tenantId);
 
   if (existing) {
     sqliteRun(
       `UPDATE jurisdiction_addendums
        SET jurisdiction_name = ?, addendum_html = ?, updated_at = datetime('now')
-       WHERE jurisdiction_code = ?`,
-      [jurisdictionName, addendumHtml, jurisdictionCode]
+       WHERE jurisdiction_code = ? AND tenant_id = ?`,
+      [jurisdictionName, addendumHtml, jurisdictionCode, tenantId]
     );
   } else {
     const id = uuidv4();
     sqliteRun(
-      `INSERT INTO jurisdiction_addendums (id, jurisdiction_code, jurisdiction_name, addendum_html)
-       VALUES (?, ?, ?, ?)`,
-      [id, jurisdictionCode, jurisdictionName, addendumHtml]
+      `INSERT INTO jurisdiction_addendums (id, jurisdiction_code, jurisdiction_name, addendum_html, tenant_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, jurisdictionCode, jurisdictionName, addendumHtml, tenantId]
     );
   }
 
-  return (await getJurisdictionAddendum(jurisdictionCode))!;
+  return (await getJurisdictionAddendum(jurisdictionCode, tenantId))!;
 }
 
 // List jurisdiction addendums
-export async function listJurisdictions(): Promise<JurisdictionAddendum[]> {
+export async function listJurisdictions(tenantId: string): Promise<JurisdictionAddendum[]> {
   const addendums = sqliteQuery<JurisdictionAddendum>(
-    `SELECT * FROM jurisdiction_addendums WHERE is_active = 1 ORDER BY jurisdiction_name`
+    `SELECT * FROM jurisdiction_addendums WHERE is_active = 1 AND tenant_id = ? ORDER BY jurisdiction_name`,
+    [tenantId]
   );
   return addendums.map(a => ({
     ...a,
@@ -651,10 +670,11 @@ export async function getRoleById(roleId: string): Promise<SigningRole | null> {
 export async function replaceSigner(
   packageId: string,
   roleId: string,
-  input: ReplaceSignerInput
+  input: ReplaceSignerInput,
+  tenantId: string
 ): Promise<ReplaceSignerResponse> {
   // Get the package
-  const pkg = await getPackageById(packageId);
+  const pkg = await getPackageById(packageId, tenantId);
   if (!pkg) {
     throw new Error('Package not found');
   }
@@ -708,7 +728,7 @@ export async function replaceSigner(
 
   // Get jurisdiction addendum if applicable
   if (pkg.jurisdiction) {
-    const addendum = await getJurisdictionAddendum(pkg.jurisdiction);
+    const addendum = await getJurisdictionAddendum(pkg.jurisdiction, tenantId);
     if (addendum) {
       baseMergeVariables.jurisdictionAddendum = `<div class="jurisdiction-addendum">\n<h4>${addendum.jurisdiction_name} Legal Notice</h4>\n${addendum.addendum_html}\n</div>`;
       baseMergeVariables.jurisdictionName = addendum.jurisdiction_name;
@@ -749,7 +769,7 @@ export async function replaceSigner(
     externalType: pkg.external_type || undefined,
     jurisdiction: pkg.jurisdiction || undefined,
     callbackUrl: pkg.callback_url || undefined,
-  });
+  }, tenantId);
 
   // Update request with package info
   sqliteRun(

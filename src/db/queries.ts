@@ -96,7 +96,7 @@ function resolveTemplate(htmlContent: string, mergeVariables?: Record<string, st
 // SIGNATURE REQUESTS
 // ============================================
 
-export async function createRequest(input: CreateRequestInput): Promise<{ request: SignatureRequest; token: SignatureToken }> {
+export async function createRequest(input: CreateRequestInput, tenantId: string): Promise<{ request: SignatureRequest; token: SignatureToken }> {
   const requestId = uuidv4();
   const tokenId = uuidv4();
   const token = generateToken();
@@ -111,7 +111,7 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
   let waiverTemplateVersion = null;
 
   if (input.waiverTemplateCode) {
-    const template = await getTemplateByCode(input.waiverTemplateCode);
+    const template = await getTemplateByCode(input.waiverTemplateCode, tenantId);
     if (template) {
       documentContent = resolveTemplate(template.html_content, input.mergeVariables);
       documentContentSnapshot = documentContent; // Store the resolved snapshot
@@ -127,8 +127,8 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
      (id, reference_code, external_ref, external_type, document_category, document_name,
       document_content, document_content_snapshot, document_url, waiver_template_code,
       waiver_template_version, merge_variables, jurisdiction, metadata, signer_name,
-      signer_email, signer_phone, verification_method, status, expires_at, callback_url, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+      signer_email, signer_phone, verification_method, status, expires_at, callback_url, created_by, tenant_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
     [
       requestId,
       referenceCode,
@@ -151,6 +151,7 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
       expiresAtStr,
       input.callbackUrl || null,
       input.createdBy || null,
+      tenantId,
     ]
   );
 
@@ -165,17 +166,23 @@ export async function createRequest(input: CreateRequestInput): Promise<{ reques
   return { request: request!, token: tokenRecord! };
 }
 
-export async function getRequestById(id: string): Promise<SignatureRequest | null> {
+export async function getRequestById(id: string, tenantId?: string): Promise<SignatureRequest | null> {
+  if (tenantId) {
+    return queryOne<SignatureRequest>(
+      `SELECT * FROM signature_requests WHERE id = ? AND tenant_id = ?`,
+      [id, tenantId]
+    );
+  }
   return queryOne<SignatureRequest>(
     `SELECT * FROM signature_requests WHERE id = ?`,
     [id]
   );
 }
 
-export async function getRequestByReferenceCode(referenceCode: string): Promise<SignatureRequest | null> {
+export async function getRequestByReferenceCode(referenceCode: string, tenantId: string): Promise<SignatureRequest | null> {
   return queryOne<SignatureRequest>(
-    `SELECT * FROM signature_requests WHERE reference_code = ?`,
-    [referenceCode]
+    `SELECT * FROM signature_requests WHERE reference_code = ? AND tenant_id = ?`,
+    [referenceCode, tenantId]
   );
 }
 
@@ -188,23 +195,37 @@ export async function getRequestByToken(token: string): Promise<SignatureRequest
   );
 }
 
-export async function updateRequestStatus(id: string, status: RequestStatus): Promise<void> {
-  if (status === 'signed') {
-    await run(
-      `UPDATE signature_requests SET status = ?, signed_at = NOW() WHERE id = ?`,
-      [status, id]
-    );
+export async function updateRequestStatus(id: string, status: RequestStatus, tenantId?: string): Promise<void> {
+  if (tenantId) {
+    if (status === 'signed') {
+      await run(
+        `UPDATE signature_requests SET status = ?, signed_at = NOW() WHERE id = ? AND tenant_id = ?`,
+        [status, id, tenantId]
+      );
+    } else {
+      await run(
+        `UPDATE signature_requests SET status = ? WHERE id = ? AND tenant_id = ?`,
+        [status, id, tenantId]
+      );
+    }
   } else {
-    await run(
-      `UPDATE signature_requests SET status = ? WHERE id = ?`,
-      [status, id]
-    );
+    if (status === 'signed') {
+      await run(
+        `UPDATE signature_requests SET status = ?, signed_at = NOW() WHERE id = ?`,
+        [status, id]
+      );
+    } else {
+      await run(
+        `UPDATE signature_requests SET status = ? WHERE id = ?`,
+        [status, id]
+      );
+    }
   }
 }
 
-export async function listRequests(filters: RequestFilters): Promise<SignatureRequest[]> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
+export async function listRequests(filters: RequestFilters, tenantId: string): Promise<SignatureRequest[]> {
+  const conditions: string[] = ['tenant_id = ?'];
+  const params: unknown[] = [tenantId];
 
   if (filters.status) {
     conditions.push('status = ?');
@@ -245,15 +266,15 @@ export async function listRequests(filters: RequestFilters): Promise<SignatureRe
   );
 }
 
-export async function deleteRequest(id: string): Promise<boolean> {
+export async function deleteRequest(id: string, tenantId: string): Promise<boolean> {
   if (config.dbType === 'sqlite') {
     const db = getSqliteDb();
-    const result = db.prepare('DELETE FROM signature_requests WHERE id = ?').run(id);
+    const result = db.prepare('DELETE FROM signature_requests WHERE id = ? AND tenant_id = ?').run(id, tenantId);
     return result.changes > 0;
   }
   const result = await mysqlQuery<{ affectedRows: number }>(
-    `DELETE FROM signature_requests WHERE id = ?`,
-    [id]
+    `DELETE FROM signature_requests WHERE id = ? AND tenant_id = ?`,
+    [id, tenantId]
   );
   return result.affectedRows > 0;
 }
@@ -382,13 +403,13 @@ export async function getSignatureByRequestId(requestId: string): Promise<Signat
 // WAIVER TEMPLATES
 // ============================================
 
-export async function createTemplate(input: CreateTemplateInput): Promise<WaiverTemplate> {
+export async function createTemplate(input: CreateTemplateInput, tenantId: string): Promise<WaiverTemplate> {
   const id = uuidv4();
 
   await run(
     `INSERT INTO waiver_templates
-     (id, template_code, name, description, html_content, jurisdiction, version, is_active, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)`,
+     (id, template_code, name, description, html_content, jurisdiction, version, is_active, created_by, tenant_id)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
     [
       id,
       input.templateCode,
@@ -397,16 +418,36 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Waiver
       input.htmlContent,
       input.jurisdiction || null,
       input.createdBy || null,
+      tenantId,
     ]
   );
 
-  return (await getTemplateByCode(input.templateCode))!;
+  return (await getTemplateByCode(input.templateCode, tenantId))!;
 }
 
-export async function getTemplateByCode(templateCode: string): Promise<WaiverTemplate | null> {
+export async function getTemplateByCode(templateCode: string, tenantId?: string): Promise<WaiverTemplate | null> {
+  let template: WaiverTemplate | null;
+  if (tenantId) {
+    template = await queryOne<WaiverTemplate>(
+      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1 AND tenant_id = ?`,
+      [templateCode, tenantId]
+    );
+  } else {
+    template = await queryOne<WaiverTemplate>(
+      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1`,
+      [templateCode]
+    );
+  }
+  if (template && config.dbType === 'sqlite') {
+    template.is_active = Boolean(template.is_active);
+  }
+  return template;
+}
+
+export async function getTemplateById(id: string, tenantId: string): Promise<WaiverTemplate | null> {
   const template = await queryOne<WaiverTemplate>(
-    `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1`,
-    [templateCode]
+    `SELECT * FROM waiver_templates WHERE id = ? AND tenant_id = ?`,
+    [id, tenantId]
   );
   if (template && config.dbType === 'sqlite') {
     template.is_active = Boolean(template.is_active);
@@ -414,19 +455,8 @@ export async function getTemplateByCode(templateCode: string): Promise<WaiverTem
   return template;
 }
 
-export async function getTemplateById(id: string): Promise<WaiverTemplate | null> {
-  const template = await queryOne<WaiverTemplate>(
-    `SELECT * FROM waiver_templates WHERE id = ?`,
-    [id]
-  );
-  if (template && config.dbType === 'sqlite') {
-    template.is_active = Boolean(template.is_active);
-  }
-  return template;
-}
-
-export async function updateTemplate(templateCode: string, input: UpdateTemplateInput): Promise<WaiverTemplate | null> {
-  const existing = await getTemplateByCode(templateCode);
+export async function updateTemplate(templateCode: string, input: UpdateTemplateInput, tenantId: string): Promise<WaiverTemplate | null> {
+  const existing = await getTemplateByCode(templateCode, tenantId);
   if (!existing) return null;
 
   const updates: string[] = [];
@@ -460,19 +490,19 @@ export async function updateTemplate(templateCode: string, input: UpdateTemplate
     return existing; // Only updated_at, no real changes
   }
 
-  params.push(templateCode);
+  params.push(templateCode, tenantId);
 
   await run(
-    `UPDATE waiver_templates SET ${updates.join(', ')} WHERE template_code = ?`,
+    `UPDATE waiver_templates SET ${updates.join(', ')} WHERE template_code = ? AND tenant_id = ?`,
     params
   );
 
-  return getTemplateByCode(templateCode);
+  return getTemplateByCode(templateCode, tenantId);
 }
 
-export async function listTemplates(jurisdiction?: string): Promise<WaiverTemplate[]> {
-  let sql = 'SELECT * FROM waiver_templates WHERE is_active = 1';
-  const params: unknown[] = [];
+export async function listTemplates(jurisdiction: string | undefined, tenantId: string): Promise<WaiverTemplate[]> {
+  let sql = 'SELECT * FROM waiver_templates WHERE is_active = 1 AND tenant_id = ?';
+  const params: unknown[] = [tenantId];
 
   if (jurisdiction) {
     sql += ' AND (jurisdiction = ? OR jurisdiction IS NULL)';
@@ -488,11 +518,11 @@ export async function listTemplates(jurisdiction?: string): Promise<WaiverTempla
   return templates;
 }
 
-export async function deleteTemplate(templateCode: string): Promise<boolean> {
+export async function deleteTemplate(templateCode: string, tenantId: string): Promise<boolean> {
   // Soft delete by marking inactive
   await run(
-    `UPDATE waiver_templates SET is_active = 0, updated_at = datetime('now') WHERE template_code = ?`,
-    [templateCode]
+    `UPDATE waiver_templates SET is_active = 0, updated_at = datetime('now') WHERE template_code = ? AND tenant_id = ?`,
+    [templateCode, tenantId]
   );
   return true;
 }
