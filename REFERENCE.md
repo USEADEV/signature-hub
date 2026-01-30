@@ -422,6 +422,154 @@ X-API-Key: your_api_key
 
 ---
 
+## Multi-Party Package Endpoints
+
+### Create Package
+
+```http
+POST /api/packages
+Content-Type: application/json
+X-API-Key: your_api_key
+```
+
+Creates a signing package for multiple signers with automatic role consolidation (signers sharing an email receive a single signing link).
+
+**Request Body:**
+
+```json
+{
+  "templateCode": "LIABILITY_WAIVER_2024",
+  "documentName": "Team Waiver Agreement",
+  "jurisdiction": "US-VA",
+  "eventDate": "2024-07-01",
+  "mergeVariables": { "organizationName": "Sports Academy" },
+  "externalRef": "registration-001",
+  "callbackUrl": "https://your-server.com/webhook",
+  "signers": [
+    {
+      "role": "participant",
+      "name": "John Athlete",
+      "email": "john@example.com",
+      "dateOfBirth": "2010-05-15",
+      "isMinor": true,
+      "isPackageAdmin": true
+    },
+    {
+      "role": "guardian",
+      "name": "Jane Parent",
+      "email": "jane@example.com",
+      "dateOfBirth": "1985-03-20"
+    }
+  ]
+}
+```
+
+---
+
+### Get Package Status
+
+```http
+GET /api/packages/:id
+X-API-Key: your_api_key
+```
+
+Retrieve by package ID or package code. Returns detailed status including all signers and their completion status.
+
+> **Need multiple packages?** Use [Batch Get Package Status](#batch-get-package-status) to retrieve up to 50 packages in a single `POST /api/packages/batch` request.
+
+---
+
+### Batch Get Package Status
+
+```http
+POST /api/packages/batch
+Content-Type: application/json
+X-API-Key: your_api_key
+```
+
+Retrieve enriched status for multiple packages in a single request. Each ID can be a package UUID or package code.
+
+**Request Body:**
+
+```json
+{
+  "ids": [
+    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "PKG-ABC12345",
+    "nonexistent-id"
+  ]
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "results": [
+    {
+      "packageId": "a1b2c3d4-...",
+      "packageCode": "PKG-ABC12345",
+      "status": "partial",
+      "totalSigners": 2,
+      "completedSigners": 1,
+      "signers": [...]
+    }
+  ],
+  "notFound": ["nonexistent-id"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `results` | array | Array of package status objects (same as Get Package Status) |
+| `notFound` | string[] | IDs/codes that could not be resolved |
+
+**Validation:**
+- `ids` must be a non-empty array of strings
+- Maximum 50 IDs per request
+- Duplicates are automatically deduplicated
+- Always returns 200; check `notFound` for unresolved IDs
+
+---
+
+### List Packages
+
+```http
+GET /api/packages
+X-API-Key: your_api_key
+```
+
+**Query Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `status` | Filter: pending, partial, complete, expired, cancelled |
+| `externalRef` | Filter by external reference |
+| `limit` | Max results (default: 100) |
+| `offset` | Pagination offset |
+
+---
+
+### Replace Signer
+
+```http
+PUT /api/packages/:id/roles/:roleId
+Content-Type: application/json
+X-API-Key: your_api_key
+```
+
+Replace a signer who hasn't signed yet. The role ID can be found in the Get Package Status response.
+
+```json
+{
+  "name": "New Signer Name",
+  "email": "new@example.com",
+  "dateOfBirth": "1990-01-15"
+}
+```
+
+---
+
 ## Template Endpoints
 
 ### Create Template

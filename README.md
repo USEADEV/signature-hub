@@ -126,6 +126,49 @@ DELETE /api/requests/:id
 X-API-Key: your_api_key
 ```
 
+#### Multi-Party Signing Packages
+
+```http
+POST /api/packages              # Create multi-signer package
+GET  /api/packages/:id          # Get package status (by ID or code)
+POST /api/packages/batch        # Batch get multiple package statuses
+GET  /api/packages              # List packages with filters
+PUT  /api/packages/:id/roles/:roleId  # Replace a signer
+```
+
+#### Batch Get Package Status
+
+Retrieve enriched status for multiple packages in a single request (max 50):
+
+```http
+POST /api/packages/batch
+Content-Type: application/json
+X-API-Key: your_api_key
+
+{
+  "ids": ["PKG-ABC12345", "PKG-DEF67890"]
+}
+```
+
+Response:
+```json
+{
+  "results": [
+    {
+      "packageId": "...",
+      "packageCode": "PKG-ABC12345",
+      "status": "partial",
+      "totalSigners": 3,
+      "completedSigners": 1,
+      "signers": [...]
+    }
+  ],
+  "notFound": []
+}
+```
+
+Each ID can be a package UUID or package code. The `results` array contains the same enriched response as `GET /api/packages/:id` (with full signer details). Any IDs that could not be resolved are listed in `notFound`.
+
 ### Webhook Callback
 
 When a document is signed, USEA eSign will POST to the configured `callbackUrl`:

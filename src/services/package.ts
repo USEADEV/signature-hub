@@ -7,6 +7,7 @@ import {
   CreatePackageResponse,
   ConsolidatedSigner,
   PackageStatusResponse,
+  BatchPackageResponse,
   SignerInput,
   PackageStatus,
   JurisdictionAddendum,
@@ -541,6 +542,37 @@ export async function getPackageStatus(packageId: string, tenantId?: string): Pr
     completedAt: pkg.completed_at,
     signers,
   };
+}
+
+// Get package status for multiple packages at once
+export async function getPackageStatusBatch(
+  ids: string[],
+  tenantId?: string
+): Promise<BatchPackageResponse> {
+  const results: PackageStatusResponse[] = [];
+  const notFound: string[] = [];
+
+  for (const id of ids) {
+    // Dual resolution: try by ID first, then by code (mirrors single endpoint)
+    let pkg = await getPackageById(id, tenantId);
+    if (!pkg) {
+      pkg = await getPackageByCode(id, tenantId);
+    }
+
+    if (!pkg) {
+      notFound.push(id);
+      continue;
+    }
+
+    const status = await getPackageStatus(pkg.id, tenantId);
+    if (status) {
+      results.push(status);
+    } else {
+      notFound.push(id);
+    }
+  }
+
+  return { results, notFound };
 }
 
 // Update package when a signature is completed

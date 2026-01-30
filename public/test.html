@@ -613,6 +613,22 @@
           <div id="response-getPackage" class="response-area" style="display:none;"></div>
         </div>
 
+        <!-- Batch Get Packages -->
+        <div class="endpoint-card">
+          <h3><span class="method post">POST</span> Batch Get Package Status</h3>
+          <div class="endpoint-path">/api/packages/batch</div>
+          <p class="hint">Retrieve status for multiple packages at once (max 50)</p>
+
+          <div class="form-row">
+            <label>Package IDs or Codes (one per line) *</label>
+            <textarea id="bp-ids" style="min-height: 100px;" placeholder="Enter package IDs or codes, one per line"></textarea>
+            <p class="hint">Each line can be a package UUID or package code (e.g., PKG-ABC12345)</p>
+          </div>
+
+          <button class="btn-send" id="btn-batchPackages">Batch Get Packages</button>
+          <div id="response-batchPackages" class="response-area" style="display:none;"></div>
+        </div>
+
         <!-- List Packages -->
         <div class="endpoint-card">
           <h3><span class="method get">GET</span> List Packages</h3>

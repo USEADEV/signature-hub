@@ -216,6 +216,18 @@ curl https://your-app.railway.app/api/templates \
   -H "X-API-Key: your_api_key"
 ```
 
+### Batch Get Package Statuses
+```bash
+curl -X POST https://your-app.railway.app/api/packages/batch \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "ids": ["PKG-ABC12345", "PKG-DEF67890"]
+  }'
+```
+
+Returns `{ "results": [...], "notFound": [...] }` — each ID can be a UUID or package code, max 50 per request.
+
 ### Cancel a Request
 ```bash
 curl -X DELETE https://your-app.railway.app/api/requests/REQUEST_ID \

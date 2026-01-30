@@ -173,6 +173,7 @@
     // Packages
     document.getElementById('btn-createPackage').addEventListener('click', createPackage);
     document.getElementById('btn-getPackage').addEventListener('click', getPackage);
+    document.getElementById('btn-batchPackages').addEventListener('click', batchGetPackages);
     document.getElementById('btn-listPackages').addEventListener('click', listPackages);
     document.getElementById('btn-listJurisdictions').addEventListener('click', listJurisdictions);
     document.getElementById('btn-roleRequirements').addEventListener('click', getRoleRequirements);
@@ -463,6 +464,24 @@
     }
     var result = await apiCall('GET', '/api/packages/' + encodeURIComponent(id));
     showResponse('getPackage', result.status, result.data);
+  }
+
+  async function batchGetPackages() {
+    if (!getApiKey()) { alert('Please enter your API key first'); return; }
+
+    var text = val('bp-ids');
+    if (!text) {
+      alert('Please enter at least one package ID or code');
+      return;
+    }
+    var ids = text.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+    if (ids.length === 0) {
+      alert('Please enter at least one package ID or code');
+      return;
+    }
+
+    var result = await apiCall('POST', '/api/packages/batch', { ids: ids });
+    showResponse('batchPackages', result.status, result.data);
   }
 
   async function listPackages() {

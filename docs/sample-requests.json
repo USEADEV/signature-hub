@@ -133,6 +133,19 @@
       "_note": "No need to specify verificationMethod - automatically detected based on what contact info is provided"
     },
 
+    "batchGetPackages": {
+      "_description": "Batch retrieve status for multiple packages at once (max 50)",
+      "endpoint": "POST /api/packages/batch",
+      "request": {
+        "ids": [
+          "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "PKG-ABC12345",
+          "nonexistent-code"
+        ]
+      },
+      "_expectedResult": "results array with found packages, notFound array with 'nonexistent-code'"
+    },
+
     "fullFeaturedPackage": {
       "_description": "Complete package with all optional fields",
       "endpoint": "POST /api/packages",
@@ -357,6 +370,8 @@
     "createPackage": "curl -X POST https://your-domain.com/api/packages -H 'Content-Type: application/json' -H 'X-API-Key: your-api-key' -d '{\"documentName\":\"Test Waiver\",\"documentContent\":\"<p>Test content for {{signerName}}</p>\",\"signers\":[{\"role\":\"participant\",\"name\":\"Test User\",\"email\":\"test@example.com\"}],\"verificationMethod\":\"email\"}'",
 
     "getPackageStatus": "curl -X GET https://your-domain.com/api/packages/PKG-ABC123 -H 'X-API-Key: your-api-key'",
+
+    "batchGetPackages": "curl -X POST https://your-domain.com/api/packages/batch -H 'Content-Type: application/json' -H 'X-API-Key: your-api-key' -d '{\"ids\":[\"PKG-ABC123\",\"PKG-DEF456\"]}'",
 
     "listPackages": "curl -X GET 'https://your-domain.com/api/packages?status=pending&limit=10' -H 'X-API-Key: your-api-key'",
 

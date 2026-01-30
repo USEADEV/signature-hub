@@ -23,6 +23,7 @@ import {
   getPackageById,
   getPackageByCode,
   getPackageStatus,
+  getPackageStatusBatch,
   listPackages,
   upsertJurisdictionAddendum,
   listJurisdictions,
@@ -407,6 +408,45 @@ router.get('/packages/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to get package:', error);
     res.status(500).json({ error: 'Failed to get package' });
+  }
+});
+
+// Batch get package statuses
+router.post('/packages/batch', async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids)) {
+      res.status(400).json({ error: 'Request body must contain an "ids" array' });
+      return;
+    }
+
+    if (ids.length === 0) {
+      res.status(400).json({ error: 'The "ids" array must not be empty' });
+      return;
+    }
+
+    const MAX_BATCH_SIZE = 50;
+    if (ids.length > MAX_BATCH_SIZE) {
+      res.status(400).json({
+        error: `Batch size exceeds maximum of ${MAX_BATCH_SIZE}. Received ${ids.length} IDs.`
+      });
+      return;
+    }
+
+    if (!ids.every((id: unknown) => typeof id === 'string' && (id as string).trim().length > 0)) {
+      res.status(400).json({ error: 'All elements in "ids" must be non-empty strings' });
+      return;
+    }
+
+    // Deduplicate while preserving order
+    const uniqueIds = [...new Set(ids.map((id: string) => id.trim()))];
+
+    const result = await getPackageStatusBatch(uniqueIds, req.tenantId!);
+    res.json(result);
+  } catch (error) {
+    console.error('Failed to batch get packages:', error);
+    res.status(500).json({ error: 'Failed to batch get packages' });
   }
 });
 

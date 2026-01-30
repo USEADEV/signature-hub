@@ -370,6 +370,15 @@ export interface PackageStatusResponse {
   signers: ConsolidatedSigner[];
 }
 
+export interface BatchPackageRequest {
+  ids: string[];
+}
+
+export interface BatchPackageResponse {
+  results: PackageStatusResponse[];
+  notFound: string[];
+}
+
 export interface PackageWebhookPayload {
   event: 'package.completed' | 'package.partial' | 'signer.completed';
   packageId: string;

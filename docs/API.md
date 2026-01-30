@@ -469,6 +469,12 @@ If `eventDate` is provided and a signer's `dateOfBirth` indicates they won't mee
 
 Retrieve by package ID or package code. Returns detailed status including all signers and their completion status.
 
+> **Need multiple packages?** Use [Batch Get Package Status](#batch-get-package-status) to retrieve up to 50 packages in a single request:
+> ```
+> POST /api/packages/batch
+> { "ids": ["PKG-ABC12345", "PKG-DEF67890"] }
+> ```
+
 **Response (200):**
 
 ```json
@@ -543,6 +549,86 @@ Retrieve by package ID or package code. Returns detailed status including all si
 | requestId | string | Request ID — use with `GET /api/requests/:id` |
 | status | string | Signer status: `pending`, `sent`, or `signed` |
 | isPackageAdmin | boolean | Whether this signer is the package admin |
+
+---
+
+### Batch Get Package Status
+
+**POST** `/api/packages/batch`
+
+Retrieve enriched status for multiple packages in a single request. Each ID can be a package UUID or package code. Returns the same detailed response as [Get Package Status](#get-package-status) for each found package.
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| ids | string[] | Yes | Array of package IDs or package codes (max 50) |
+
+**Request Example:**
+
+```json
+{
+  "ids": [
+    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "PKG-ABC12345",
+    "nonexistent-id"
+  ]
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "results": [
+    {
+      "packageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "packageCode": "PKG-ABC12345",
+      "externalRef": "registration-001",
+      "documentName": "Team Waiver",
+      "jurisdiction": "US-VA",
+      "status": "partial",
+      "totalSigners": 2,
+      "completedSigners": 1,
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "expiresAt": "2024-02-15T00:00:00.000Z",
+      "signers": [
+        {
+          "name": "John Smith",
+          "email": "john@example.com",
+          "roles": [{ "roleId": "role_1", "roleName": "participant" }],
+          "signUrl": "https://your-domain.com/sign/token123...",
+          "requestId": "req_abc123",
+          "status": "signed",
+          "isPackageAdmin": true
+        }
+      ]
+    }
+  ],
+  "notFound": ["nonexistent-id"]
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| results | array | Array of package status objects (same structure as [Get Package Status](#get-package-status)) |
+| notFound | string[] | IDs or codes that could not be resolved to a package |
+
+> **Notes:**
+> - Duplicate IDs are automatically deduplicated by exact string match.
+> - Each ID is resolved using the same dual lookup as the single endpoint (UUID first, then package code).
+> - The response is always `200`, even if some or all IDs are not found — check the `notFound` array for failures.
+
+**Validation Errors (400):**
+
+| Condition | Error |
+|-----------|-------|
+| `ids` missing or not an array | `Request body must contain an "ids" array` |
+| `ids` is empty | `The "ids" array must not be empty` |
+| More than 50 IDs | `Batch size exceeds maximum of 50` |
+| Non-string elements | `All elements in "ids" must be non-empty strings` |
 
 ---
 
