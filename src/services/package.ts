@@ -16,8 +16,14 @@ import {
   ReplaceSignerResponse,
   VerificationMethod,
 } from '../types';
-import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId } from '../db/queries';
+import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId, updateRequestStatus } from '../db/queries';
 import { getSqliteDb } from '../db/sqlite';
+import { sendSignatureRequestEmail } from './email';
+import { sendSignatureRequestSms as sendSmsTwilio } from './twilio';
+import { sendSignatureRequestSms as sendSmsMandrill } from './mandrill-sms';
+
+// Select SMS provider based on config
+const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
 
 // Default role age requirements
 // These can be overridden via configuration or API
@@ -407,6 +413,47 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
     }
 
     const signUrl = `${config.baseUrl}/sign/${token.token}`;
+
+    // Send notification to signer (skip in demo mode)
+    if (!config.demoMode) {
+      if (config.testMode) {
+        console.log(`[TEST MODE] Package notification for "${documentName}" to ${primarySigner.name} redirected to test accounts`);
+      }
+
+      let notificationSent = false;
+
+      if (primarySigner.email && (signerVerificationMethod === 'email' || signerVerificationMethod === 'both')) {
+        try {
+          await sendSignatureRequestEmail(
+            primarySigner.email,
+            primarySigner.name,
+            documentName,
+            signUrl
+          );
+          notificationSent = true;
+        } catch (error) {
+          console.error(`Failed to send email notification to ${primarySigner.name}:`, error);
+        }
+      }
+
+      if (primarySigner.phone && (signerVerificationMethod === 'sms' || signerVerificationMethod === 'both')) {
+        try {
+          await sendSignatureRequestSms(
+            primarySigner.phone,
+            primarySigner.name,
+            documentName,
+            signUrl
+          );
+          notificationSent = true;
+        } catch (error) {
+          console.error(`Failed to send SMS notification to ${primarySigner.name}:`, error);
+        }
+      }
+
+      if (notificationSent) {
+        await updateRequestStatus(request.id, 'sent');
+      }
+    }
 
     signatureRequests.push({
       requestId: request.id,
@@ -850,6 +897,47 @@ export async function replaceSigner(
   }
 
   const signUrl = `${config.baseUrl}/sign/${newToken.token}`;
+
+  // Send notification to the replacement signer (skip in demo mode)
+  if (!config.demoMode) {
+    if (config.testMode) {
+      console.log(`[TEST MODE] Replacement signer notification for "${pkg.document_name}" to ${input.name} redirected to test accounts`);
+    }
+
+    let notificationSent = false;
+
+    if (input.email && (verificationMethod === 'email' || verificationMethod === 'both')) {
+      try {
+        await sendSignatureRequestEmail(
+          input.email,
+          input.name,
+          pkg.document_name,
+          signUrl
+        );
+        notificationSent = true;
+      } catch (error) {
+        console.error(`Failed to send email notification to replacement signer ${input.name}:`, error);
+      }
+    }
+
+    if (input.phone && (verificationMethod === 'sms' || verificationMethod === 'both')) {
+      try {
+        await sendSignatureRequestSms(
+          input.phone,
+          input.name,
+          pkg.document_name,
+          signUrl
+        );
+        notificationSent = true;
+      } catch (error) {
+        console.error(`Failed to send SMS notification to replacement signer ${input.name}:`, error);
+      }
+    }
+
+    if (notificationSent) {
+      await updateRequestStatus(newRequest.id, 'sent');
+    }
+  }
 
   return {
     roleId,

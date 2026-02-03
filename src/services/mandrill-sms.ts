@@ -3,6 +3,14 @@ import { config } from '../config';
 
 const SMS_API_ENDPOINT = 'https://mandrillapp.com/api/1.1/messages/send-sms';
 
+function resolveSmsRecipient(originalTo: string): string {
+  if (!config.demoMode && config.testMode && config.testPhone) {
+    console.log(`[TEST MODE] SMS redirected: ${originalTo} → ${config.testPhone}`);
+    return config.testPhone;
+  }
+  return originalTo;
+}
+
 interface SmsResult {
   success: boolean;
   status?: string;
@@ -19,7 +27,7 @@ async function sendSms(
     message: {
       sms: {
         text,
-        to,
+        to: resolveSmsRecipient(to),
         from: config.mandrill.phoneNumber,
         consent: 'onetime',
         track_clicks: false,

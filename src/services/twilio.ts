@@ -1,6 +1,14 @@
 import twilio from 'twilio';
 import { config } from '../config';
 
+function resolveSmsRecipient(originalTo: string): string {
+  if (!config.demoMode && config.testMode && config.testPhone) {
+    console.log(`[TEST MODE] SMS redirected: ${originalTo} → ${config.testPhone}`);
+    return config.testPhone;
+  }
+  return originalTo;
+}
+
 let client: twilio.Twilio | null = null;
 
 function getClient(): twilio.Twilio {
@@ -23,7 +31,7 @@ export async function sendVerificationSms(
   await getClient().messages.create({
     body: message,
     from: config.twilio.phoneNumber,
-    to,
+    to: resolveSmsRecipient(to),
   });
 }
 
@@ -38,7 +46,7 @@ export async function sendSignatureRequestSms(
   await getClient().messages.create({
     body: message,
     from: config.twilio.phoneNumber,
-    to,
+    to: resolveSmsRecipient(to),
   });
 }
 
@@ -51,6 +59,6 @@ export async function sendSignatureConfirmationSms(
   await getClient().messages.create({
     body: message,
     from: config.twilio.phoneNumber,
-    to,
+    to: resolveSmsRecipient(to),
   });
 }

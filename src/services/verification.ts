@@ -35,6 +35,12 @@ export async function sendVerificationCode(
     // Generate and store the code
     const code = await setVerificationCode(token.id);
 
+    // Log test mode redirect info
+    if (config.testMode && !config.demoMode) {
+      const originalDest = method === 'email' ? request.signer_email : request.signer_phone;
+      console.log(`[TEST MODE] Verification for ${request.signer_name} (original: ${originalDest})`);
+    }
+
     // In demo mode, just log the code and skip actual sending
     if (config.demoMode) {
       console.log(`[DEMO MODE] Verification code for ${request.signer_name}: ${code}`);

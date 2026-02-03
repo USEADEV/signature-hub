@@ -1,6 +1,14 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config';
 
+function resolveEmailRecipient(originalTo: string): string {
+  if (!config.demoMode && config.testMode && config.testEmail) {
+    console.log(`[TEST MODE] Email redirected: ${originalTo} → ${config.testEmail}`);
+    return config.testEmail;
+  }
+  return originalTo;
+}
+
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
@@ -41,7 +49,7 @@ export async function sendVerificationEmail(
 
   await getTransporter().sendMail({
     from: config.email.from,
-    to,
+    to: resolveEmailRecipient(to),
     subject: `Your verification code: ${code}`,
     html,
   });
@@ -76,7 +84,7 @@ export async function sendSignatureRequestEmail(
 
   await getTransporter().sendMail({
     from: config.email.from,
-    to,
+    to: resolveEmailRecipient(to),
     subject: `Signature requested: ${documentName}`,
     html,
   });
@@ -106,7 +114,7 @@ export async function sendSignatureConfirmationEmail(
 
   await getTransporter().sendMail({
     from: config.email.from,
-    to,
+    to: resolveEmailRecipient(to),
     subject: `Document signed: ${documentName}`,
     html,
   });

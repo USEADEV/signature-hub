@@ -34,6 +34,9 @@ export async function createSignatureRequest(input: CreateRequestInput, tenantId
   const signUrl = `${config.baseUrl}/sign/${token.token}`;
 
   // Send notification to signer (skip in demo mode)
+  if (!config.demoMode && config.testMode) {
+    console.log(`[TEST MODE] Notifications for "${input.documentName}" redirected to test accounts`);
+  }
   if (!config.demoMode) {
     let notificationSent = false;
 

@@ -14,6 +14,11 @@ export const config = {
   // Demo mode: skips real email/SMS, uses code "123456"
   demoMode: optionalEnv('DEMO_MODE', 'true') === 'true',
 
+  // Test mode: sends real emails/SMS but overrides all recipients to test accounts
+  testMode: optionalEnv('TEST_MODE', 'false') === 'true',
+  testEmail: process.env.TEST_EMAIL || '',
+  testPhone: process.env.TEST_PHONE || '',
+
   // Database type: 'sqlite' or 'mysql'
   dbType: optionalEnv('DB_TYPE', 'sqlite') as 'sqlite' | 'mysql',
 
@@ -71,6 +76,13 @@ export function validateConfig(): void {
   if (config.demoMode) {
     console.log('Running in DEMO MODE - email/SMS verification disabled');
     return;
+  }
+
+  // Log test mode status
+  if (config.testMode) {
+    console.log('Running in TEST MODE - all emails/SMS redirected to test accounts');
+    if (config.testEmail) console.log(`  Test email: ${config.testEmail}`);
+    if (config.testPhone) console.log(`  Test phone: ${config.testPhone}`);
   }
 
   const errors: string[] = [];
