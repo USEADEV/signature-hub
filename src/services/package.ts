@@ -664,7 +664,7 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
 }
 
 // Get package admin contact info
-export async function getPackageAdminContact(packageId: string): Promise<{ adminName: string; adminEmail?: string; adminPhone?: string } | null> {
+export async function getPackageAdminContact(packageId: string): Promise<{ adminName: string; adminEmail?: string; adminPhone?: string; adminRequestId?: string } | null> {
   const adminRole = sqliteQueryOne<SigningRole>(
     `SELECT * FROM signing_roles WHERE package_id = ? AND is_package_admin = 1 LIMIT 1`,
     [packageId]
@@ -675,6 +675,7 @@ export async function getPackageAdminContact(packageId: string): Promise<{ admin
     adminName: adminRole.signer_name,
     adminEmail: adminRole.signer_email || undefined,
     adminPhone: adminRole.signer_phone || undefined,
+    adminRequestId: adminRole.request_id || undefined,
   };
 }
 
@@ -748,6 +749,18 @@ export async function listJurisdictions(tenantId: string): Promise<JurisdictionA
 }
 
 // Get a specific role by ID
+export function getRoleByRequestId(requestId: string): SigningRole | null {
+  const role = sqliteQueryOne<SigningRole>(
+    `SELECT * FROM signing_roles WHERE request_id = ? LIMIT 1`,
+    [requestId]
+  );
+  return role ? {
+    ...role,
+    is_minor: Boolean(role.is_minor),
+    is_package_admin: Boolean(role.is_package_admin),
+  } : null;
+}
+
 export async function getRoleById(roleId: string): Promise<SigningRole | null> {
   const role = sqliteQueryOne<SigningRole>(
     `SELECT * FROM signing_roles WHERE id = ?`,

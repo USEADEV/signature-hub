@@ -4,8 +4,9 @@ import { verificationRateLimit, signatureRateLimit } from '../middleware/rateLim
 import { getRequestFromToken, submitSignature, declineRequest } from '../services/signature';
 import { sendVerificationCode, confirmVerificationCode, getAvailableMethods } from '../services/verification';
 import { updateRequestStatus } from '../db/queries';
-import { SigningPageData } from '../types';
+import { SigningPageData, ReplaceSignerInput } from '../types';
 import { config } from '../config';
+import { getRoleByRequestId, getRoleById, replaceSigner } from '../services/package';
 
 const router = Router();
 
@@ -294,6 +295,108 @@ router.post('/:token/decline', signatureRateLimit, async (req: Request, res: Res
   } catch (error) {
     console.error('Failed to decline signature request:', error);
     res.status(500).json({ error: 'Failed to decline signature request' });
+  }
+});
+
+// Replace signer (admin-authenticated via sign token)
+router.get('/:token/replace-info/:roleId', async (req: Request, res: Response) => {
+  try {
+    const data = await getRequestFromToken(req.params.token);
+    if (!data) {
+      res.status(410).json({ error: 'Invalid or expired link' });
+      return;
+    }
+
+    const { request } = data;
+    if (!request.package_id) {
+      res.status(400).json({ error: 'This request is not part of a package' });
+      return;
+    }
+
+    // Verify the token belongs to a package admin
+    const adminRole = getRoleByRequestId(request.id);
+    if (!adminRole || !adminRole.is_package_admin) {
+      res.status(403).json({ error: 'Only the package admin can replace signers' });
+      return;
+    }
+
+    // Get the role to be replaced
+    const targetRole = await getRoleById(req.params.roleId);
+    if (!targetRole) {
+      res.status(404).json({ error: 'Role not found' });
+      return;
+    }
+    if (targetRole.package_id !== request.package_id) {
+      res.status(400).json({ error: 'Role does not belong to this package' });
+      return;
+    }
+
+    res.json({
+      packageId: request.package_id,
+      roleId: targetRole.id,
+      roleName: targetRole.role_name,
+      currentSignerName: targetRole.signer_name,
+      currentStatus: targetRole.status,
+      documentName: request.document_name,
+      adminName: adminRole.signer_name,
+    });
+  } catch (error) {
+    console.error('Failed to get replacement info:', error);
+    res.status(500).json({ error: 'Failed to load replacement information' });
+  }
+});
+
+router.post('/:token/replace-signer', signatureRateLimit, async (req: Request, res: Response) => {
+  try {
+    const data = await getRequestFromToken(req.params.token);
+    if (!data) {
+      res.status(410).json({ error: 'Invalid or expired link' });
+      return;
+    }
+
+    const { request } = data;
+    if (!request.package_id) {
+      res.status(400).json({ error: 'This request is not part of a package' });
+      return;
+    }
+
+    // Verify the token belongs to a package admin
+    const adminRole = getRoleByRequestId(request.id);
+    if (!adminRole || !adminRole.is_package_admin) {
+      res.status(403).json({ error: 'Only the package admin can replace signers' });
+      return;
+    }
+
+    const { roleId, name, email, phone } = req.body;
+    if (!roleId || !name) {
+      res.status(400).json({ error: 'roleId and name are required' });
+      return;
+    }
+    if (!email && !phone) {
+      res.status(400).json({ error: 'Either email or phone is required' });
+      return;
+    }
+
+    const input: ReplaceSignerInput = {
+      name: name.trim(),
+      email: email?.trim() || undefined,
+      phone: phone?.trim() || undefined,
+    };
+
+    const result = await replaceSigner(request.package_id!, roleId, input, request.tenant_id || '');
+    res.json(result);
+  } catch (error) {
+    console.error('Failed to replace signer:', error);
+    if (error instanceof Error) {
+      if (error.message.includes('not found') ||
+          error.message.includes('Cannot replace') ||
+          error.message.includes('already signed') ||
+          error.message.includes('required')) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+    }
+    res.status(500).json({ error: 'Failed to replace signer' });
   }
 });
 

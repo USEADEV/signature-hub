@@ -525,6 +525,13 @@ export async function updateRequestDeclined(id: string, declineReason?: string):
   );
 }
 
+export async function updateSigningRolesStatusByRequestId(requestId: string, status: string): Promise<void> {
+  await run(
+    `UPDATE signing_roles SET status = ? WHERE request_id = ?`,
+    [status, requestId]
+  );
+}
+
 export async function getExpiredRequests(): Promise<SignatureRequest[]> {
   return query<SignatureRequest[]>(
     `SELECT * FROM signature_requests

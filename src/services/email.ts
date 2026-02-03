@@ -134,7 +134,8 @@ export async function sendDeclineNotificationEmail(
   adminName: string,
   signerName: string,
   documentName: string,
-  declineReason?: string
+  declineReason?: string,
+  replacementUrl?: string
 ): Promise<void> {
   const reasonHtml = declineReason
     ? `<div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107;">
@@ -142,16 +143,25 @@ export async function sendDeclineNotificationEmail(
       </div>`
     : '<p style="color: #666;">No reason was provided.</p>';
 
+  const replacementHtml = replacementUrl
+    ? `<div style="text-align: center; margin: 24px 0;">
+        <a href="${replacementUrl}" style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Replace Signer
+        </a>
+      </div>
+      <p style="color: #666; font-size: 14px;">Click the button above to assign a replacement signer for this document.</p>`
+    : '<p>You may need to contact the signer or arrange for a replacement.</p>';
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #dc3545;">Signature Declined</h2>
       <p>Hello ${adminName},</p>
-      <p><strong>${signerName}</strong> has declined to sign the following document:</p>
+      <p><strong>${escapeHtml(signerName)}</strong> has declined to sign the following document:</p>
       <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
-        <strong>${documentName}</strong>
+        <strong>${escapeHtml(documentName)}</strong>
       </div>
       ${reasonHtml}
-      <p>You may need to contact the signer or arrange for a replacement.</p>
+      ${replacementHtml}
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
       <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
     </div>

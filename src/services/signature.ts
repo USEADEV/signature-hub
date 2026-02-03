@@ -18,6 +18,8 @@ import {
   getSignatureByRequestId,
   updateRequestStatus,
   updateRequestDeclined,
+  updateSigningRolesStatusByRequestId,
+  getTokenByRequestId,
 } from '../db/queries';
 import { config } from '../config';
 import { sendSignatureRequestEmail, sendSignatureConfirmationEmail, sendDeclineNotificationEmail, sendCancellationNotificationEmail } from './email';
@@ -25,7 +27,7 @@ import { sendSignatureRequestSms as sendSmsTwilio, sendSignatureConfirmationSms 
 import { sendSignatureRequestSms as sendSmsMandrill, sendSignatureConfirmationSms as sendConfirmMandrill } from './mandrill-sms';
 import { sendDeclineNotificationSms as sendDeclineSmsTwilio } from './twilio';
 import { sendDeclineNotificationSms as sendDeclineSmsMandrill } from './mandrill-sms';
-import { onSignatureCompleted, getPackageAdminContact } from './package';
+import { onSignatureCompleted, getPackageAdminContact, getRoleByRequestId } from './package';
 
 // Select SMS provider based on config
 const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
@@ -305,6 +307,11 @@ export async function declineRequest(
   // Update status to declined
   await updateRequestDeclined(request.id, declineReason);
 
+  // Update signing_roles status if part of a package
+  if (request.package_id) {
+    await updateSigningRolesStatusByRequestId(request.id, 'declined');
+  }
+
   // Send webhook if callback_url is set
   if (request.callback_url) {
     try {
@@ -321,13 +328,24 @@ export async function declineRequest(
     try {
       const adminContact = await getPackageAdminContact(request.package_id);
       if (adminContact) {
+        // Build replacement URL for the admin
+        let replacementUrl: string | undefined;
+        const declinedRole = getRoleByRequestId(request.id);
+        if (declinedRole && adminContact.adminRequestId) {
+          const adminToken = await getTokenByRequestId(adminContact.adminRequestId);
+          if (adminToken) {
+            replacementUrl = `${config.baseUrl}/replace.html?token=${adminToken.token}&role=${declinedRole.id}`;
+          }
+        }
+
         if (adminContact.adminEmail) {
           await sendDeclineNotificationEmail(
             adminContact.adminEmail,
             adminContact.adminName,
             request.signer_name,
             request.document_name,
-            declineReason
+            declineReason,
+            replacementUrl
           );
         }
         if (adminContact.adminPhone) {

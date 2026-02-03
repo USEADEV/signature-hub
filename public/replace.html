@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Replace Signer - SignatureHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .replace-form {
+      margin-top: 24px;
+    }
+    .replace-form label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+    .replace-form input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm, 8px);
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    .replace-form input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.1);
+    }
+    .info-box {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: var(--radius-sm, 8px);
+      margin-bottom: 24px;
+    }
+    .info-box p {
+      margin: 4px 0;
+      font-size: 0.9rem;
+    }
+    .info-box .label {
+      color: var(--color-text-light);
+    }
+    .status-declined {
+      color: #dc2626;
+      font-weight: 600;
+    }
+    .status-page {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .status-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 24px;
+    }
+    .status-icon.success { background: rgba(0, 166, 118, 0.1); color: var(--color-success); }
+    .status-icon.error { background: #fee2e2; color: #dc2626; }
+    .btn.loading {
+      position: relative;
+      color: transparent !important;
+      pointer-events: none;
+    }
+    .btn.loading::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid transparent;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      left: 50%;
+      top: 50%;
+      margin: -9px 0 0 -9px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .inline-error {
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      color: var(--color-error);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .inline-error.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <img src="/images/usea-logo.svg" alt="SignatureHub" class="logo" onerror="this.style.display='none'">
+        <h1>SignatureHub</h1>
+      </div>
+    </header>
+
+    <main>
+      <!-- Loading -->
+      <div id="loading" class="section">
+        <div class="spinner"></div>
+        <p>Loading replacement details...</p>
+      </div>
+
+      <!-- Error -->
+      <div id="error" class="section hidden status-page">
+        <div class="status-icon error">!</div>
+        <h2 id="error-title">Something went wrong</h2>
+        <p id="error-message">We couldn't load the replacement details.</p>
+      </div>
+
+      <!-- Replace Form -->
+      <div id="replace-form-section" class="section hidden">
+        <h2>Replace Signer</h2>
+
+        <div class="info-box">
+          <p><span class="label">Document:</span> <strong id="doc-name"></strong></p>
+          <p><span class="label">Previous Signer:</span> <strong id="prev-signer"></strong></p>
+          <p><span class="label">Role:</span> <strong id="role-name"></strong></p>
+          <p><span class="label">Status:</span> <span id="current-status" class="status-declined"></span></p>
+        </div>
+
+        <div id="inline-error" class="inline-error"></div>
+
+        <div class="replace-form">
+          <label for="new-name">New Signer's Full Name *</label>
+          <input type="text" id="new-name" placeholder="Enter full name" required>
+
+          <label for="new-email">Email Address</label>
+          <input type="email" id="new-email" placeholder="Enter email address">
+
+          <label for="new-phone">Phone Number</label>
+          <input type="tel" id="new-phone" placeholder="+1234567890">
+
+          <p style="font-size: 0.85rem; color: var(--color-text-light); margin-bottom: 20px;">
+            At least one contact method (email or phone) is required. The new signer will receive a signing invitation.
+          </p>
+
+          <button id="btn-submit" class="btn btn-primary">Send to New Signer</button>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div id="success" class="section hidden status-page">
+        <div class="status-icon success">&#10003;</div>
+        <h2>Signer Replaced</h2>
+        <p>A signing invitation has been sent to <strong id="new-signer-name"></strong>.</p>
+        <p style="color: var(--color-text-light); font-size: 0.9rem; margin-top: 8px;">
+          You can close this page.
+        </p>
+      </div>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 SignatureHub. Secure document signing.</p>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const roleId = params.get('role');
+
+      const loading = document.getElementById('loading');
+      const errorSection = document.getElementById('error');
+      const errorTitle = document.getElementById('error-title');
+      const errorMessage = document.getElementById('error-message');
+      const formSection = document.getElementById('replace-form-section');
+      const successSection = document.getElementById('success');
+      const inlineError = document.getElementById('inline-error');
+
+      function showSection(id) {
+        [loading, errorSection, formSection, successSection].forEach(el => el.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+      }
+
+      function showError(title, message) {
+        errorTitle.textContent = title;
+        errorMessage.textContent = message;
+        showSection('error');
+      }
+
+      function showInlineError(msg) {
+        inlineError.textContent = msg;
+        inlineError.classList.add('visible');
+      }
+
+      function hideInlineError() {
+        inlineError.classList.remove('visible');
+      }
+
+      if (!token || !roleId) {
+        showError('Invalid Link', 'This replacement link is missing required parameters.');
+        return;
+      }
+
+      // Load replacement info
+      fetch(`/sign/${token}/replace-info/${roleId}`)
+        .then(res => {
+          if (!res.ok) return res.json().then(data => { throw new Error(data.error || 'Failed to load'); });
+          return res.json();
+        })
+        .then(data => {
+          document.getElementById('doc-name').textContent = data.documentName;
+          document.getElementById('prev-signer').textContent = data.currentSignerName;
+          document.getElementById('role-name').textContent = data.roleName;
+          document.getElementById('current-status').textContent = data.currentStatus;
+          showSection('replace-form-section');
+        })
+        .catch(err => {
+          showError('Unable to Load', err.message || 'Failed to load replacement details.');
+        });
+
+      // Submit replacement
+      document.getElementById('btn-submit').addEventListener('click', async function() {
+        hideInlineError();
+        const btn = this;
+        const name = document.getElementById('new-name').value.trim();
+        const email = document.getElementById('new-email').value.trim();
+        const phone = document.getElementById('new-phone').value.trim();
+
+        if (!name) {
+          showInlineError('Please enter the new signer\'s full name.');
+          return;
+        }
+        if (!email && !phone) {
+          showInlineError('Please provide at least one contact method (email or phone).');
+          return;
+        }
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+          const res = await fetch(`/sign/${token}/replace-signer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roleId, name, email: email || undefined, phone: phone || undefined }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to replace signer');
+          }
+
+          document.getElementById('new-signer-name').textContent = name;
+          showSection('success');
+        } catch (err) {
+          showInlineError(err.message || 'An error occurred. Please try again.');
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
