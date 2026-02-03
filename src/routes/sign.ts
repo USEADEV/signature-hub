@@ -62,8 +62,8 @@ router.get('/:token/data', async (req: Request, res: Response) => {
       hasEmail: !!request.signer_email,
       hasPhone: !!request.signer_phone,
       demoMode: config.demoMode,
-      // Include roles if this is part of a package
-      roles: request.roles_display ? JSON.parse(request.roles_display) : undefined,
+      // Include roles if this is part of a package (stored as comma-separated string)
+      roles: request.roles_display ? request.roles_display.split(',').map((r: string) => r.trim()) : undefined,
       packageCode: request.package_id ? request.reference_code : undefined,
     };
 
