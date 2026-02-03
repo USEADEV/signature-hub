@@ -4,6 +4,7 @@ import { sendVerificationEmail } from './email';
 import { sendVerificationSms as sendViaTwilio } from './twilio';
 import { sendVerificationSms as sendViaMandrill } from './mandrill-sms';
 import { config } from '../config';
+import { extractContextFields } from './signature';
 
 // Select SMS provider based on config
 const sendVerificationSms = config.smsProvider === 'mandrill' ? sendViaMandrill : sendViaTwilio;
@@ -54,7 +55,8 @@ export async function sendVerificationCode(
         request.signer_email!,
         request.signer_name,
         code,
-        request.document_name
+        request.document_name,
+        extractContextFields(request)
       );
     } else {
       await sendVerificationSms(

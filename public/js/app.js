@@ -29,6 +29,7 @@
     documentName: document.getElementById('document-name'),
     signerName: document.getElementById('signer-name'),
     signerRoles: document.getElementById('signer-roles'),
+    contextFields: document.getElementById('context-fields'),
     documentContent: document.getElementById('document-content'),
     documentUrl: document.getElementById('document-url'),
     documentLink: document.getElementById('document-link'),
@@ -272,6 +273,22 @@
         const roleNames = pageData.roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ');
         elements.signerRoles.innerHTML = `<strong>Role(s):</strong> ${roleNames}`;
         elements.signerRoles.classList.remove('hidden');
+      }
+
+      // Render context fields (event, horse, rider, etc.)
+      if (pageData.contextFields && pageData.contextFields.length > 0 && elements.contextFields) {
+        elements.contextFields.innerHTML = pageData.contextFields
+          .map(function(f) {
+            var labelEl = document.createElement('span');
+            labelEl.className = 'context-field-label';
+            labelEl.textContent = f.label + ':';
+            var valueEl = document.createElement('span');
+            valueEl.className = 'context-field-value';
+            valueEl.textContent = f.value;
+            return labelEl.outerHTML + valueEl.outerHTML;
+          })
+          .join('');
+        elements.contextFields.classList.remove('hidden');
       }
 
       if (pageData.documentContent) {

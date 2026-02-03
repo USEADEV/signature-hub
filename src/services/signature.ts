@@ -7,6 +7,7 @@ import {
   SignatureToken,
   WebhookPayload,
   RequestStatusResponse,
+  ContextField,
 } from '../types';
 import {
   createRequest as dbCreateRequest,
@@ -34,6 +35,35 @@ const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandr
 const sendSignatureConfirmationSms = config.smsProvider === 'mandrill' ? sendConfirmMandrill : sendConfirmTwilio;
 const sendDeclineNotificationSms = config.smsProvider === 'mandrill' ? sendDeclineSmsMandrill : sendDeclineSmsTwilio;
 
+const CONTEXT_FIELD_MAP: Record<string, string> = {
+  eventName: 'Event',
+  eventDate: 'Event Date',
+  horseName: 'Horse',
+  riderName: 'Rider',
+  trainerName: 'Trainer',
+  ownerName: 'Owner',
+  competitionName: 'Competition',
+  venueName: 'Venue',
+  className: 'Class',
+  divisionName: 'Division',
+};
+
+export function extractContextFields(request: SignatureRequest): ContextField[] | undefined {
+  if (!request.merge_variables) return undefined;
+  try {
+    const vars = JSON.parse(request.merge_variables);
+    const fields: ContextField[] = [];
+    for (const [key, label] of Object.entries(CONTEXT_FIELD_MAP)) {
+      if (vars[key]) {
+        fields.push({ label, value: vars[key] });
+      }
+    }
+    return fields.length > 0 ? fields : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function createSignatureRequest(input: CreateRequestInput, tenantId: string): Promise<CreateRequestResponse> {
   const { request, token } = await dbCreateRequest(input, tenantId);
 
@@ -45,6 +75,7 @@ export async function createSignatureRequest(input: CreateRequestInput, tenantId
   }
   if (!config.demoMode) {
     let notificationSent = false;
+    const contextFields = extractContextFields(request);
 
     // Send email notification if email method is enabled
     if (input.signerEmail && (input.verificationMethod === 'email' || input.verificationMethod === 'both' || !input.verificationMethod)) {
@@ -53,7 +84,8 @@ export async function createSignatureRequest(input: CreateRequestInput, tenantId
           input.signerEmail,
           input.signerName,
           input.documentName,
-          signUrl
+          signUrl,
+          contextFields
         );
         notificationSent = true;
       } catch (error) {
@@ -207,13 +239,15 @@ export async function submitSignature(
 
   // Send confirmation (skip in demo mode)
   if (!config.demoMode) {
+    const contextFields = extractContextFields(request);
     try {
       if (request.signer_email) {
         await sendSignatureConfirmationEmail(
           request.signer_email,
           request.signer_name,
           request.document_name,
-          signature.signed_at
+          signature.signed_at,
+          contextFields
         );
       }
       if (request.signer_phone && request.verification_method !== 'email') {
@@ -377,11 +411,13 @@ export async function sendCancellationNotifications(request: SignatureRequest): 
 
   // Notify signer via email
   if (!config.demoMode && request.signer_email) {
+    const contextFields = extractContextFields(request);
     try {
       await sendCancellationNotificationEmail(
         request.signer_email,
         request.signer_name,
-        request.document_name
+        request.document_name,
+        contextFields
       );
     } catch (error) {
       console.error('Failed to send cancellation email:', error);

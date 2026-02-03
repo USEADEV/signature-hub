@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config';
+import { ContextField } from '../types';
 
 function escapeHtml(str: string): string {
   return str
@@ -8,6 +9,17 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function buildContextBlock(contextFields?: ContextField[]): string {
+  if (!contextFields || contextFields.length === 0) return '';
+  const rows = contextFields
+    .map(f => `<tr>
+      <td style="padding: 4px 12px 4px 0; color: #636e72; font-size: 13px; white-space: nowrap;">${escapeHtml(f.label)}:</td>
+      <td style="padding: 4px 0; color: #2d3436; font-size: 13px; font-weight: 600;">${escapeHtml(f.value)}</td>
+    </tr>`)
+    .join('');
+  return `<table style="margin: 12px 0 0; border-collapse: collapse;">${rows}</table>`;
 }
 
 function resolveEmailRecipient(originalTo: string): string {
@@ -39,13 +51,16 @@ export async function sendVerificationEmail(
   to: string,
   signerName: string,
   code: string,
-  documentName: string
+  documentName: string,
+  contextFields?: ContextField[]
 ): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #333;">Verification Code</h2>
-      <p>Hello ${signerName},</p>
-      <p>Your verification code for signing <strong>${documentName}</strong> is:</p>
+      <p>Hello ${escapeHtml(signerName)},</p>
+      <p>Your verification code for signing <strong>${escapeHtml(documentName)}</strong> is:</p>
+      ${contextHtml}
       <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0;">
         <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #333;">${code}</span>
       </div>
@@ -68,15 +83,18 @@ export async function sendSignatureRequestEmail(
   to: string,
   signerName: string,
   documentName: string,
-  signUrl: string
+  signUrl: string,
+  contextFields?: ContextField[]
 ): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #333;">Document Signature Requested</h2>
-      <p>Hello ${signerName},</p>
+      <p>Hello ${escapeHtml(signerName)},</p>
       <p>You have been requested to sign the following document:</p>
       <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
-        <strong>${documentName}</strong>
+        <strong>${escapeHtml(documentName)}</strong>
+        ${contextHtml}
       </div>
       <p>Please click the button below to review and sign the document:</p>
       <div style="text-align: center; margin: 30px 0;">
@@ -103,17 +121,20 @@ export async function sendSignatureConfirmationEmail(
   to: string,
   signerName: string,
   documentName: string,
-  signedAt: Date
+  signedAt: Date,
+  contextFields?: ContextField[]
 ): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #28a745;">Document Signed Successfully</h2>
-      <p>Hello ${signerName},</p>
+      <p>Hello ${escapeHtml(signerName)},</p>
       <p>You have successfully signed the following document:</p>
       <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
-        <strong>${documentName}</strong>
+        <strong>${escapeHtml(documentName)}</strong>
         <br>
         <span style="color: #666; font-size: 14px;">Signed on: ${signedAt.toLocaleString()}</span>
+        ${contextHtml}
       </div>
       <p>A copy of the signed document has been recorded for your records.</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
@@ -178,15 +199,18 @@ export async function sendDeclineNotificationEmail(
 export async function sendExpirationNotificationEmail(
   to: string,
   signerName: string,
-  documentName: string
+  documentName: string,
+  contextFields?: ContextField[]
 ): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #856404;">Signature Request Expired</h2>
-      <p>Hello ${signerName},</p>
+      <p>Hello ${escapeHtml(signerName)},</p>
       <p>Your signature request for the following document has expired:</p>
       <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
-        <strong>${documentName}</strong>
+        <strong>${escapeHtml(documentName)}</strong>
+        ${contextHtml}
       </div>
       <p>If you still need to sign this document, please contact the requesting party to send a new signature request.</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
@@ -205,15 +229,18 @@ export async function sendExpirationNotificationEmail(
 export async function sendCancellationNotificationEmail(
   to: string,
   signerName: string,
-  documentName: string
+  documentName: string,
+  contextFields?: ContextField[]
 ): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #6c757d;">Signature Request Cancelled</h2>
-      <p>Hello ${signerName},</p>
+      <p>Hello ${escapeHtml(signerName)},</p>
       <p>The signature request for the following document has been cancelled:</p>
       <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
-        <strong>${documentName}</strong>
+        <strong>${escapeHtml(documentName)}</strong>
+        ${contextHtml}
       </div>
       <p>No further action is required from you. If you have questions, please contact the requesting party.</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">

@@ -247,6 +247,26 @@
       display: none;
     }
     .resend-success.visible { display: block; }
+
+    /* Context fields */
+    .context-fields {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--color-border);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 16px;
+      font-size: 0.9rem;
+    }
+    .context-field-label {
+      color: var(--color-text-light);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .context-field-value {
+      color: var(--color-text);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -335,6 +355,7 @@
           <p class="document-name" id="document-name"></p>
           <p class="signer-name">Signing as: <strong id="signer-name"></strong></p>
           <p id="signer-roles" class="signer-roles hidden"></p>
+          <div id="context-fields" class="context-fields hidden"></div>
         </div>
         <div id="document-content" class="document-content hidden"></div>
         <div id="document-url" class="document-url hidden">

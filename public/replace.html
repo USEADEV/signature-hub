@@ -96,6 +96,46 @@
     .inline-error.visible {
       display: block;
     }
+
+    /* Phone input wrapper */
+    .phone-input-wrapper {
+      position: relative;
+    }
+    .phone-input-wrapper input {
+      padding-left: 48px !important;
+    }
+    .phone-flag {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+    }
+    .phone-hint {
+      font-size: 0.8rem;
+      color: var(--color-text-light);
+      margin: -12px 0 16px;
+    }
+    .phone-validation {
+      font-size: 0.8rem;
+      margin: -12px 0 16px;
+      display: none;
+    }
+    .phone-validation.valid {
+      display: block;
+      color: var(--color-success);
+    }
+    .phone-validation.invalid {
+      display: block;
+      color: var(--color-error);
+    }
+    .replace-form input.input-valid {
+      border-color: var(--color-success);
+    }
+    .replace-form input.input-invalid {
+      border-color: var(--color-error);
+    }
   </style>
 </head>
 <body>
@@ -142,7 +182,12 @@
           <input type="email" id="new-email" placeholder="Enter email address">
 
           <label for="new-phone">Phone Number</label>
-          <input type="tel" id="new-phone" placeholder="+1234567890">
+          <div class="phone-input-wrapper">
+            <span class="phone-flag" id="phone-flag"></span>
+            <input type="tel" id="new-phone" placeholder="(555) 123-4567" autocomplete="tel">
+          </div>
+          <p class="phone-hint">US numbers assumed if no country code entered. For international, start with +.</p>
+          <p id="phone-validation" class="phone-validation"></p>
 
           <p style="font-size: 0.85rem; color: var(--color-text-light); margin-bottom: 20px;">
             At least one contact method (email or phone) is required. The new signer will receive a signing invitation.
@@ -182,6 +227,10 @@
       const successSection = document.getElementById('success');
       const inlineError = document.getElementById('inline-error');
 
+      const phoneInput = document.getElementById('new-phone');
+      const phoneFlag = document.getElementById('phone-flag');
+      const phoneValidation = document.getElementById('phone-validation');
+
       function showSection(id) {
         [loading, errorSection, formSection, successSection].forEach(el => el.classList.add('hidden'));
         document.getElementById(id).classList.remove('hidden');
@@ -201,6 +250,111 @@
       function hideInlineError() {
         inlineError.classList.remove('visible');
       }
+
+      // --- Phone Formatting ---
+      function stripNonDigits(str) {
+        return str.replace(/[^\d]/g, '');
+      }
+
+      function formatUSPhone(digits) {
+        if (digits.length <= 3) return '(' + digits;
+        if (digits.length <= 6) return '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+        return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6, 10);
+      }
+
+      function getPhoneE164() {
+        const raw = phoneInput.value.trim();
+        if (!raw) return '';
+        if (raw.startsWith('+')) {
+          return '+' + stripNonDigits(raw);
+        }
+        const digits = stripNonDigits(raw);
+        if (digits.length === 10) return '+1' + digits;
+        if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;
+        return '+' + digits;
+      }
+
+      function validatePhone() {
+        const raw = phoneInput.value.trim();
+        if (!raw) {
+          phoneInput.classList.remove('input-valid', 'input-invalid');
+          phoneValidation.className = 'phone-validation';
+          phoneFlag.textContent = '';
+          return { valid: true, empty: true };
+        }
+
+        const isInternational = raw.startsWith('+') && !raw.startsWith('+1');
+        const e164 = getPhoneE164();
+        const digits = stripNonDigits(e164.slice(1));
+
+        if (isInternational) {
+          phoneFlag.textContent = '';
+          if (digits.length >= 7 && digits.length <= 15) {
+            phoneInput.classList.remove('input-invalid');
+            phoneInput.classList.add('input-valid');
+            phoneValidation.textContent = 'Valid international number';
+            phoneValidation.className = 'phone-validation valid';
+            return { valid: true, empty: false };
+          } else {
+            phoneInput.classList.remove('input-valid');
+            phoneInput.classList.add('input-invalid');
+            phoneValidation.textContent = 'International numbers should be 7-15 digits';
+            phoneValidation.className = 'phone-validation invalid';
+            return { valid: false, empty: false };
+          }
+        }
+
+        // US number
+        phoneFlag.textContent = '\uD83C\uDDFA\uD83C\uDDF8';
+        const usDigits = stripNonDigits(raw);
+        const effectiveDigits = (usDigits.length === 11 && usDigits.startsWith('1')) ? usDigits.slice(1) : usDigits;
+
+        if (effectiveDigits.length === 10) {
+          phoneInput.classList.remove('input-invalid');
+          phoneInput.classList.add('input-valid');
+          phoneValidation.textContent = '+1 ' + formatUSPhone(effectiveDigits);
+          phoneValidation.className = 'phone-validation valid';
+          return { valid: true, empty: false };
+        } else if (effectiveDigits.length < 10) {
+          phoneInput.classList.remove('input-valid', 'input-invalid');
+          phoneValidation.className = 'phone-validation';
+          phoneFlag.textContent = '\uD83C\uDDFA\uD83C\uDDF8';
+          return { valid: false, empty: false };
+        } else {
+          phoneInput.classList.remove('input-valid');
+          phoneInput.classList.add('input-invalid');
+          phoneValidation.textContent = 'US numbers should be 10 digits';
+          phoneValidation.className = 'phone-validation invalid';
+          return { valid: false, empty: false };
+        }
+      }
+
+      phoneInput.addEventListener('input', function() {
+        const raw = this.value;
+        const isInternational = raw.startsWith('+');
+
+        if (!isInternational) {
+          // Auto-format US number as user types
+          const digits = stripNonDigits(raw);
+          const cursorPos = this.selectionStart;
+          const prevLength = raw.length;
+
+          if (digits.length <= 10) {
+            const formatted = digits.length > 0 ? formatUSPhone(digits) : '';
+            this.value = formatted;
+            // Adjust cursor position
+            const diff = formatted.length - prevLength;
+            this.setSelectionRange(cursorPos + diff, cursorPos + diff);
+          }
+        }
+        validatePhone();
+      });
+
+      phoneInput.addEventListener('blur', function() {
+        validatePhone();
+      });
+
+      // --- End Phone Formatting ---
 
       if (!token || !roleId) {
         showError('Invalid Link', 'This replacement link is missing required parameters.');
@@ -230,15 +384,22 @@
         const btn = this;
         const name = document.getElementById('new-name').value.trim();
         const email = document.getElementById('new-email').value.trim();
-        const phone = document.getElementById('new-phone').value.trim();
+        const phoneE164 = getPhoneE164();
 
         if (!name) {
           showInlineError('Please enter the new signer\'s full name.');
           return;
         }
-        if (!email && !phone) {
+        if (!email && !phoneE164) {
           showInlineError('Please provide at least one contact method (email or phone).');
           return;
+        }
+        if (phoneE164) {
+          const phoneResult = validatePhone();
+          if (!phoneResult.valid) {
+            showInlineError('Please enter a valid phone number.');
+            return;
+          }
         }
 
         btn.classList.add('loading');
@@ -248,7 +409,7 @@
           const res = await fetch(`/sign/${token}/replace-signer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roleId, name, email: email || undefined, phone: phone || undefined }),
+            body: JSON.stringify({ roleId, name, email: email || undefined, phone: phoneE164 || undefined }),
           });
 
           const data = await res.json();

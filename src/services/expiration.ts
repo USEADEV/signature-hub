@@ -1,6 +1,6 @@
 import { config } from '../config';
 import { getExpiredRequests, updateRequestStatus } from '../db/queries';
-import { sendWebhookCallback } from './signature';
+import { sendWebhookCallback, extractContextFields } from './signature';
 import { sendExpirationNotificationEmail } from './email';
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -37,7 +37,8 @@ export async function processExpiredRequests(): Promise<void> {
             await sendExpirationNotificationEmail(
               request.signer_email,
               request.signer_name,
-              request.document_name
+              request.document_name,
+              extractContextFields(request)
             );
           } catch (error) {
             console.error(`[Expiration] Failed to send email for ${request.id}:`, error);

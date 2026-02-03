@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import path from 'path';
 import { verificationRateLimit, signatureRateLimit } from '../middleware/rateLimit';
-import { getRequestFromToken, submitSignature, declineRequest } from '../services/signature';
+import { getRequestFromToken, submitSignature, declineRequest, extractContextFields } from '../services/signature';
 import { sendVerificationCode, confirmVerificationCode, getAvailableMethods } from '../services/verification';
 import { updateRequestStatus } from '../db/queries';
 import { SigningPageData, ReplaceSignerInput } from '../types';
@@ -56,6 +56,9 @@ router.get('/:token/data', async (req: Request, res: Response) => {
       return;
     }
 
+    // Extract context fields from merge_variables
+    const contextFields = extractContextFields(request);
+
     const pageData: SigningPageData = {
       requestId: request.id,
       documentName: request.document_name,
@@ -71,6 +74,7 @@ router.get('/:token/data', async (req: Request, res: Response) => {
       // Include roles if this is part of a package (stored as comma-separated string)
       roles: request.roles_display ? request.roles_display.split(',').map((r: string) => r.trim()) : undefined,
       packageCode: request.package_id ? request.reference_code : undefined,
+      contextFields,
     };
 
     res.json(pageData);

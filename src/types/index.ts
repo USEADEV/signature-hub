@@ -148,6 +148,11 @@ export interface RequestFilters {
   offset?: number;
 }
 
+export interface ContextField {
+  label: string;
+  value: string;
+}
+
 export interface SigningPageData {
   requestId: string;
   documentName: string;
@@ -161,6 +166,7 @@ export interface SigningPageData {
   demoMode: boolean;
   roles?: string[];
   packageCode?: string;
+  contextFields?: ContextField[];
 }
 
 export interface CreateTemplateInput {
