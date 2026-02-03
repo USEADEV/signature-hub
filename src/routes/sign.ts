@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import path from 'path';
-import { verificationRateLimit, signatureRateLimit } from '../middleware/rateLimit';
+import { verificationRateLimit, signatureRateLimit, checkDestinationLimit, checkTokenVerificationLimit } from '../middleware/rateLimit';
 import { getRequestFromToken, submitSignature, declineRequest, extractContextFields } from '../services/signature';
 import { sendVerificationCode, confirmVerificationCode, getAvailableMethods } from '../services/verification';
 import { updateRequestStatus } from '../db/queries';
 import { SigningPageData, ReplaceSignerInput } from '../types';
 import { config } from '../config';
 import { getRoleByRequestId, getRoleById, replaceSigner } from '../services/package';
+import { getClientIp } from '../utils/ip';
 
 const router = Router();
 
@@ -126,6 +127,23 @@ router.post('/:token/verify', verificationRateLimit, async (req: Request, res: R
       return;
     }
 
+    // Per-token rate limit: max verification code requests per signing token
+    if (!checkTokenVerificationLimit(token.id)) {
+      res.status(429).json({
+        error: 'Too many verification attempts for this document. Please contact support.',
+      });
+      return;
+    }
+
+    // Per-destination rate limit: max verification codes to same email/phone
+    const destination = method === 'email' ? request.signer_email : request.signer_phone;
+    if (destination && !checkDestinationLimit(destination)) {
+      res.status(429).json({
+        error: 'Too many verification requests to this address. Please try again later.',
+      });
+      return;
+    }
+
     const result = await sendVerificationCode(request, token, method);
 
     if (!result.success) {
@@ -232,9 +250,7 @@ router.post('/:token/submit', signatureRateLimit, async (req: Request, res: Resp
       return;
     }
 
-    const signerIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim()
-      || req.socket.remoteAddress
-      || 'unknown';
+    const signerIp = getClientIp(req);
     const userAgent = req.headers['user-agent'] || 'unknown';
 
     const result = await submitSignature(
