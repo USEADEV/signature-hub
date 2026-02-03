@@ -10,8 +10,11 @@ SignatureHub provides a comprehensive API for electronic signature collection wi
 - Age validation for role-based requirements
 - Package admin designation for signer replacement
 - Real-time webhooks for status updates
+- Public package status pages
 
 **Getting Started:** See the [Interactive Guide](/) for a walkthrough with common scenarios.
+
+**Visual Walkthrough:** See the [User Guide](/docs/user-guide.html) for screenshots and UI flow diagrams.
 
 ---
 
