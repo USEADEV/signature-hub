@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { config } from '../config';
 import {
   SigningPackage,
@@ -133,7 +134,7 @@ function generatePackageCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'PKG-';
   for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
@@ -155,14 +156,35 @@ function sqliteRun(sql: string, params: unknown[] = []): void {
   stmt.run(...params);
 }
 
+// HTML escape for XSS prevention in merge variables
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Escape regex special characters to prevent ReDoS
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Fields that are trusted HTML and should not be escaped
+const HTML_FIELDS = new Set(['jurisdictionAddendum']);
+
 // Resolve template variables
 function resolveTemplate(htmlContent: string, mergeVariables?: Record<string, string>): string {
   if (!mergeVariables) return htmlContent;
 
   let resolved = htmlContent;
   for (const [key, value] of Object.entries(mergeVariables)) {
-    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-    resolved = resolved.replace(placeholder, value || '');
+    const escapedKey = escapeRegex(key);
+    const placeholder = new RegExp(`\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'g');
+    // Escape HTML in values unless they're known HTML fields
+    const safeValue = HTML_FIELDS.has(key) ? value : escapeHtml(value || '');
+    resolved = resolved.replace(placeholder, safeValue);
   }
   return resolved;
 }

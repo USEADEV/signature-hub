@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { getSqliteDb } from '../db/sqlite';
+import { adminRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -15,7 +16,21 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
     res.status(503).json({ error: 'Admin API not configured. Set ADMIN_API_KEY environment variable.' });
     return;
   }
-  if (!adminKey || adminKey !== expectedKey) {
+  if (!adminKey) {
+    res.status(403).json({ error: 'Invalid admin key' });
+    return;
+  }
+
+  // Use constant-time comparison to prevent timing attacks
+  try {
+    const adminKeyBuffer = Buffer.from(adminKey);
+    const expectedBuffer = Buffer.from(expectedKey);
+    if (adminKeyBuffer.length !== expectedBuffer.length ||
+        !crypto.timingSafeEqual(adminKeyBuffer, expectedBuffer)) {
+      res.status(403).json({ error: 'Invalid admin key' });
+      return;
+    }
+  } catch {
     res.status(403).json({ error: 'Invalid admin key' });
     return;
   }
@@ -23,6 +38,7 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 router.use(adminAuth);
+router.use(adminRateLimit);
 
 // Create a new API key for a tenant
 router.post('/api-keys', (req: Request, res: Response) => {

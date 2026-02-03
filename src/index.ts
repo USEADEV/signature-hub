@@ -20,13 +20,39 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
+      // Note: 'unsafe-inline' is required for existing inline scripts in HTML files
+      // TODO: Refactor to external scripts and use nonces for better security
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'self'"],
+      formAction: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
     },
   },
 }));
 
-app.use(cors());
+// Configure CORS with explicit allowed origins
+const allowedOrigins = [
+  config.baseUrl,
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+].filter(Boolean);
+
+app.use(cors({
+  origin: config.env === 'production'
+    ? (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+          return callback(null, true);
+        }
+        console.warn(`CORS blocked origin: ${origin}`);
+        return callback(new Error('Not allowed by CORS'), false);
+      }
+    : true, // Allow all origins in development
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' })); // Allow large base64 signatures
 app.use(express.urlencoded({ extended: true }));
 

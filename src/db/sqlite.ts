@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config';
 
@@ -322,19 +323,26 @@ function generateReferenceCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'SIG-';
   for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
 
 function seedDefaultApiKey(db: Database.Database): void {
-  const defaultKey = config.apiKey || 'demo-api-key';
-  const existing = db.prepare("SELECT id FROM api_keys WHERE api_key = ?").get(defaultKey) as { id: string } | undefined;
+  // Don't seed the insecure default 'demo-api-key' - require explicit configuration
+  if (!config.apiKey || config.apiKey === 'demo-api-key') {
+    if (config.env === 'production') {
+      console.warn('[Security] No API_KEY configured. API endpoints will require a valid key.');
+    }
+    return;
+  }
+
+  const existing = db.prepare("SELECT id FROM api_keys WHERE api_key = ?").get(config.apiKey) as { id: string } | undefined;
   if (!existing) {
     db.prepare(
       `INSERT INTO api_keys (id, api_key, tenant_id, tenant_name, is_active)
        VALUES (?, ?, 'default-tenant', 'Default Tenant', 1)`
-    ).run(uuidv4(), defaultKey);
+    ).run(uuidv4(), config.apiKey);
   }
 
   // Seed additional API keys from environment

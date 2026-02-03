@@ -282,12 +282,61 @@ export async function submitSignature(
   return { success: true, signature };
 }
 
+// Validate callback URL to prevent SSRF attacks
+function isValidCallbackUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+
+    // Only allow HTTPS (or HTTP for local development)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return false;
+    }
+
+    // Block localhost and loopback
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return false;
+    }
+
+    // Block private IP ranges
+    const ipMatch = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      // 10.x.x.x
+      if (a === 10) return false;
+      // 172.16.x.x - 172.31.x.x
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      // 192.168.x.x
+      if (a === 192 && b === 168) return false;
+      // 169.254.x.x (link-local)
+      if (a === 169 && b === 254) return false;
+      // 127.x.x.x (loopback)
+      if (a === 127) return false;
+    }
+
+    // Block common internal hostnames
+    if (hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.endsWith('.localhost')) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function sendWebhookCallback(
   request: SignatureRequest,
   event: WebhookPayload['event'],
   extra?: Partial<WebhookPayload>
 ): Promise<void> {
   if (!request.callback_url) return;
+
+  // Validate callback URL to prevent SSRF
+  if (!isValidCallbackUrl(request.callback_url)) {
+    console.warn(`[Webhook] Blocked callback to unsafe URL: ${request.callback_url}`);
+    return;
+  }
 
   const payload: WebhookPayload = {
     event,

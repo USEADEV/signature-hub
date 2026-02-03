@@ -23,3 +23,11 @@ export const apiRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const adminRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 admin requests per 15 minutes
+  message: { error: 'Too many admin requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

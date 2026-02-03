@@ -74,7 +74,7 @@ export async function sendVerificationEmail(
   await getTransporter().sendMail({
     from: config.email.from,
     to: resolveEmailRecipient(to),
-    subject: `Your verification code: ${code}`,
+    subject: `Your verification code for ${escapeHtml(documentName)}`,
     html,
   });
 }

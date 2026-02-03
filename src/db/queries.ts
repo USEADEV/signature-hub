@@ -25,7 +25,7 @@ function generateReferenceCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'SIG-';
   for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }
@@ -35,8 +35,17 @@ function generateVerificationCode(): string {
     return config.verification.demoCode;
   }
   const min = Math.pow(10, config.verification.codeLength - 1);
-  const max = Math.pow(10, config.verification.codeLength) - 1;
-  return Math.floor(min + Math.random() * (max - min + 1)).toString();
+  const max = Math.pow(10, config.verification.codeLength);
+  return crypto.randomInt(min, max).toString();
+}
+
+function constantTimeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do a comparison to prevent timing leak on length check
+    crypto.timingSafeEqual(Buffer.from(a), Buffer.from(a));
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 // Helper for SQLite queries
@@ -80,14 +89,35 @@ async function run(sql: string, params: unknown[] = []): Promise<void> {
   await mysqlQuery(sql, params);
 }
 
+// HTML escape for XSS prevention in merge variables
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Escape regex special characters to prevent ReDoS
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Fields that are trusted HTML and should not be escaped
+const HTML_FIELDS = new Set(['jurisdictionAddendum']);
+
 // Template resolution with merge variables
 function resolveTemplate(htmlContent: string, mergeVariables?: Record<string, string>): string {
   if (!mergeVariables) return htmlContent;
 
   let resolved = htmlContent;
   for (const [key, value] of Object.entries(mergeVariables)) {
-    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-    resolved = resolved.replace(placeholder, value);
+    const escapedKey = escapeRegex(key);
+    const placeholder = new RegExp(`\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'g');
+    // Escape HTML in values unless they're known HTML fields
+    const safeValue = HTML_FIELDS.has(key) ? value : escapeHtml(value || '');
+    resolved = resolved.replace(placeholder, safeValue);
   }
   return resolved;
 }
@@ -352,7 +382,7 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
     return { success: false, error: 'Verification code expired' };
   }
 
-  if (token.verification_code !== code) {
+  if (!constantTimeCompare(token.verification_code, code)) {
     return { success: false, error: 'Invalid verification code' };
   }
 
