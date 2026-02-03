@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Package Status - SignatureHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .status-card {
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .status-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .status-header h2 {
+      margin: 0 0 4px;
+      font-size: 1.25rem;
+    }
+    .package-code {
+      color: var(--color-text-light);
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+    .context-fields {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 16px;
+      font-size: 0.9rem;
+    }
+    .context-field-label {
+      color: var(--color-text-light);
+    }
+    .context-field-value {
+      color: var(--color-text);
+      font-weight: 600;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    .status-badge.complete {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-badge.partial {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status-badge.pending {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+    .status-badge.expired {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status-badge.cancelled {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .progress-summary {
+      padding: 16px 24px;
+      background: var(--color-bg-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+    .progress-bar-container {
+      flex: 1;
+      max-width: 200px;
+      height: 8px;
+      background: var(--color-border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-left: 16px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--color-success);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .signers-list {
+      padding: 0;
+    }
+    .signer-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .signer-item:last-child {
+      border-bottom: none;
+    }
+    .signer-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    .signer-icon.signed {
+      background: #d4edda;
+      color: #28a745;
+    }
+    .signer-icon.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .signer-icon.declined {
+      background: #f8d7da;
+      color: #dc3545;
+    }
+    .signer-details {
+      flex: 1;
+      min-width: 0;
+    }
+    .signer-name {
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .signer-roles {
+      color: var(--color-text-light);
+      font-size: 0.9rem;
+      margin: 0 0 8px;
+    }
+    .signer-meta {
+      font-size: 0.85rem;
+      color: var(--color-text-light);
+    }
+    .signer-meta .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--color-success);
+    }
+
+    .document-section {
+      padding: 24px;
+    }
+    .document-section h3 {
+      margin: 0 0 16px;
+      font-size: 1rem;
+      color: var(--color-text-light);
+    }
+    .document-preview {
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .document-preview h1, .document-preview h2 {
+      font-size: 1.1rem;
+      margin-top: 0;
+    }
+
+    .signature-block {
+      margin-top: 24px;
+      padding: 16px;
+      background: white;
+      border: 2px solid var(--color-success);
+      border-radius: var(--radius-sm);
+    }
+    .signature-block-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--color-success);
+      font-weight: 600;
+    }
+    .signature-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+    .signature-detail-label {
+      color: var(--color-text-light);
+      font-size: 0.8rem;
+    }
+    .signature-detail-value {
+      font-weight: 500;
+    }
+
+    .share-section {
+      padding: 24px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-bg-subtle);
+    }
+    .share-section h3 {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+      color: var(--color-text-light);
+    }
+    .share-url {
+      display: flex;
+      gap: 8px;
+    }
+    .share-url input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      background: white;
+    }
+    .share-url button {
+      padding: 10px 16px;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .share-url button:hover {
+      opacity: 0.9;
+    }
+
+    .loading-state, .error-state {
+      text-align: center;
+      padding: 60px 24px;
+    }
+    .error-state {
+      color: var(--color-error);
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <img src="/images/usea-logo.svg" alt="SignatureHub" class="logo" onerror="this.style.display='none'">
+        <h1>SignatureHub</h1>
+      </div>
+    </header>
+
+    <main>
+      <!-- Loading State -->
+      <div id="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading package status...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error" class="error-state hidden">
+        <h2 id="error-title">Package Not Found</h2>
+        <p id="error-message">The requested package could not be found or has expired.</p>
+      </div>
+
+      <!-- Status Content -->
+      <div id="status-content" class="hidden">
+        <div class="status-card">
+          <div class="status-header">
+            <h2 id="document-name">Document Name</h2>
+            <div class="package-code" id="package-code">PKG-XXXXXXXX</div>
+            <div id="context-fields" class="context-fields hidden"></div>
+            <div id="status-badge" class="status-badge pending">
+              <span id="status-icon"></span>
+              <span id="status-text">Pending</span>
+            </div>
+          </div>
+
+          <div class="progress-summary">
+            <span><strong id="completed-count">0</strong> of <strong id="total-count">0</strong> signatures</span>
+            <div class="progress-bar-container">
+              <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="signers-list" id="signers-list">
+            <!-- Signer items will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Document Preview (collapsed by default) -->
+        <div class="status-card">
+          <div class="document-section">
+            <h3>Document</h3>
+            <button id="toggle-document" class="btn btn-secondary" style="margin-bottom: 16px;">Show Document</button>
+            <div id="document-preview" class="document-preview hidden"></div>
+          </div>
+        </div>
+
+        <!-- Share Link -->
+        <div class="status-card">
+          <div class="share-section">
+            <h3>Share this status page</h3>
+            <div class="share-url">
+              <input type="text" id="share-url" readonly>
+              <button id="copy-btn">Copy Link</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 SignatureHub. Secure electronic signatures.</p>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      const pathParts = window.location.pathname.split('/');
+      const packageCode = pathParts[pathParts.length - 1];
+
+      const loading = document.getElementById('loading');
+      const errorSection = document.getElementById('error');
+      const errorTitle = document.getElementById('error-title');
+      const errorMessage = document.getElementById('error-message');
+      const statusContent = document.getElementById('status-content');
+
+      function showSection(section) {
+        loading.classList.add('hidden');
+        errorSection.classList.add('hidden');
+        statusContent.classList.add('hidden');
+        section.classList.remove('hidden');
+      }
+
+      function showError(title, message) {
+        errorTitle.textContent = title;
+        errorMessage.textContent = message;
+        showSection(errorSection);
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+
+      function getStatusIcon(status) {
+        switch (status) {
+          case 'complete': return '\u2713';
+          case 'partial': return '\u23F3';
+          case 'pending': return '\u25CB';
+          case 'expired': return '\u2717';
+          case 'cancelled': return '\u2717';
+          default: return '\u25CB';
+        }
+      }
+
+      function getSignerIcon(status) {
+        switch (status) {
+          case 'signed': return '\u2713';
+          case 'declined': return '\u2717';
+          default: return '\u23F3';
+        }
+      }
+
+      function renderSigners(signers) {
+        const list = document.getElementById('signers-list');
+        list.innerHTML = '';
+
+        for (const signer of signers) {
+          const iconClass = signer.status === 'signed' ? 'signed' :
+                           signer.status === 'declined' ? 'declined' : 'pending';
+          const icon = getSignerIcon(signer.status);
+          const roles = signer.roles.map(r => r.roleName).join(', ');
+
+          let meta = '';
+          if (signer.status === 'signed' && signer.signedAt) {
+            meta = `<span class="verified-badge">\u2713 Signed ${formatDate(signer.signedAt)}</span>`;
+            if (signer.verificationMethod) {
+              meta += ` \u00B7 Verified via ${signer.verificationMethod}`;
+            }
+          } else if (signer.status === 'declined') {
+            meta = `<span style="color: var(--color-error);">Declined</span>`;
+            if (signer.declineReason) {
+              meta += `: ${signer.declineReason}`;
+            }
+          } else {
+            meta = 'Awaiting signature';
+          }
+
+          const item = document.createElement('div');
+          item.className = 'signer-item';
+          item.innerHTML = `
+            <div class="signer-icon ${iconClass}">${icon}</div>
+            <div class="signer-details">
+              <p class="signer-name">${escapeHtml(signer.name)}${signer.isPackageAdmin ? ' <span style="font-size: 0.75rem; color: var(--color-text-light);">(Admin)</span>' : ''}</p>
+              <p class="signer-roles">${escapeHtml(roles)}</p>
+              <p class="signer-meta">${meta}</p>
+            </div>
+          `;
+          list.appendChild(item);
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;');
+      }
+
+      // Load package status
+      fetch(`/status/${packageCode}/data`)
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(data => {
+              throw new Error(data.error || 'Package not found');
+            });
+          }
+          return res.json();
+        })
+        .then(data => {
+          // Document name and package code
+          document.getElementById('document-name').textContent = data.documentName;
+          document.getElementById('package-code').textContent = data.packageCode;
+
+          // Context fields
+          if (data.contextFields && data.contextFields.length > 0) {
+            const contextDiv = document.getElementById('context-fields');
+            contextDiv.innerHTML = data.contextFields
+              .map(f => `<span class="context-field-label">${escapeHtml(f.label)}:</span><span class="context-field-value">${escapeHtml(f.value)}</span>`)
+              .join('');
+            contextDiv.classList.remove('hidden');
+          }
+
+          // Status badge
+          const statusBadge = document.getElementById('status-badge');
+          statusBadge.className = `status-badge ${data.status}`;
+          document.getElementById('status-icon').textContent = getStatusIcon(data.status);
+          document.getElementById('status-text').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+
+          // Progress
+          document.getElementById('completed-count').textContent = data.completedSigners;
+          document.getElementById('total-count').textContent = data.totalSigners;
+          const progress = data.totalSigners > 0 ? (data.completedSigners / data.totalSigners) * 100 : 0;
+          document.getElementById('progress-bar').style.width = `${progress}%`;
+
+          // Signers list
+          renderSigners(data.signers);
+
+          // Document preview
+          if (data.documentContent) {
+            document.getElementById('document-preview').innerHTML = data.documentContent;
+          }
+
+          // Share URL
+          document.getElementById('share-url').value = window.location.href;
+
+          showSection(statusContent);
+        })
+        .catch(err => {
+          showError('Package Not Found', err.message || 'The requested package could not be found.');
+        });
+
+      // Toggle document preview
+      document.getElementById('toggle-document').addEventListener('click', function() {
+        const preview = document.getElementById('document-preview');
+        const isHidden = preview.classList.contains('hidden');
+        preview.classList.toggle('hidden');
+        this.textContent = isHidden ? 'Hide Document' : 'Show Document';
+      });
+
+      // Copy share URL
+      document.getElementById('copy-btn').addEventListener('click', function() {
+        const input = document.getElementById('share-url');
+        input.select();
+        document.execCommand('copy');
+        this.textContent = 'Copied!';
+        setTimeout(() => { this.textContent = 'Copy Link'; }, 2000);
+      });
+    })();
+  </script>
+</body>
+</html>

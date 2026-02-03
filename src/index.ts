@@ -6,6 +6,7 @@ import { config, validateConfig } from './config';
 import apiRoutes from './routes/api';
 import signRoutes from './routes/sign';
 import adminRoutes from './routes/admin';
+import statusRoutes from './routes/status';
 import { closePool } from './db/connection';
 import { startExpirationChecker, stopExpirationChecker } from './services/expiration';
 
@@ -75,6 +76,7 @@ app.get('/health', (req, res) => {
 app.use('/api', apiRoutes);
 app.use('/sign', signRoutes);
 app.use('/admin', adminRoutes);
+app.use('/status', statusRoutes);
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -255,3 +255,127 @@ export async function sendCancellationNotificationEmail(
     html,
   });
 }
+
+export interface PackageSigner {
+  name: string;
+  roles: string[];
+  status: 'pending' | 'sent' | 'signed' | 'declined';
+  signedAt?: Date;
+  verificationMethod?: string;
+}
+
+export async function sendPackageCreatedEmail(
+  to: string,
+  adminName: string,
+  packageCode: string,
+  documentName: string,
+  statusUrl: string,
+  totalSigners: number,
+  contextFields?: ContextField[]
+): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Waiver Package Created</h2>
+      <p>Hello ${escapeHtml(adminName)},</p>
+      <p>A signature package has been created and sent to ${totalSigners} signer${totalSigners !== 1 ? 's' : ''}:</p>
+      <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
+        <strong>${escapeHtml(documentName)}</strong>
+        <br>
+        <span style="color: #666; font-size: 14px; font-family: monospace;">${escapeHtml(packageCode)}</span>
+        ${contextHtml}
+      </div>
+      <p>You can track the status of all signatures using the link below:</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${statusUrl}" style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          View Status
+        </a>
+      </div>
+      <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+      <p style="color: #666; font-size: 12px; word-break: break-all;">${statusUrl}</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: resolveEmailRecipient(to),
+    subject: `Package created: ${documentName}`,
+    html,
+  });
+}
+
+export async function sendPackageCompletedEmail(
+  to: string,
+  adminName: string,
+  packageCode: string,
+  documentName: string,
+  statusUrl: string,
+  signers: PackageSigner[],
+  contextFields?: ContextField[]
+): Promise<void> {
+  const contextHtml = buildContextBlock(contextFields);
+
+  // Build signers summary table
+  const signersHtml = signers.map(signer => {
+    const roles = signer.roles.join(', ');
+    const signedDate = signer.signedAt
+      ? signer.signedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : '';
+    const verified = signer.verificationMethod ? ` via ${signer.verificationMethod}` : '';
+
+    return `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #eee;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #d4edda; color: #28a745; display: flex; align-items: center; justify-content: center; font-size: 16px;">&#10003;</div>
+            <div>
+              <strong style="color: #333;">${escapeHtml(signer.name)}</strong>
+              <div style="color: #666; font-size: 13px;">${escapeHtml(roles)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; color: #666; font-size: 13px;">
+          ${signedDate}${verified}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #28a745;">All Signatures Collected</h2>
+      <p>Hello ${escapeHtml(adminName)},</p>
+      <p>All signatures have been collected for the following document:</p>
+      <div style="background-color: #d4edda; padding: 15px; margin: 20px 0; border-radius: 5px;">
+        <strong style="color: #155724;">${escapeHtml(documentName)}</strong>
+        <br>
+        <span style="color: #155724; font-size: 14px; font-family: monospace;">${escapeHtml(packageCode)}</span>
+        ${contextHtml ? contextHtml.replace(/#636e72/g, '#155724').replace(/#2d3436/g, '#155724') : ''}
+      </div>
+
+      <h3 style="color: #333; margin-top: 24px;">Signatures</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        ${signersHtml}
+      </table>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${statusUrl}" style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          View Complete Package
+        </a>
+      </div>
+      <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+      <p style="color: #666; font-size: 12px; word-break: break-all;">${statusUrl}</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: resolveEmailRecipient(to),
+    subject: `All signatures collected: ${documentName}`,
+    html,
+  });
+}

@@ -19,9 +19,10 @@ import {
 } from '../types';
 import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId, updateRequestStatus } from '../db/queries';
 import { getSqliteDb } from '../db/sqlite';
-import { sendSignatureRequestEmail } from './email';
+import { sendSignatureRequestEmail, sendPackageCreatedEmail, sendPackageCompletedEmail, PackageSigner } from './email';
 import { sendSignatureRequestSms as sendSmsTwilio } from './twilio';
 import { sendSignatureRequestSms as sendSmsMandrill } from './mandrill-sms';
+import { getSignatureByRequestId } from '../db/queries';
 
 // Select SMS provider based on config
 const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
@@ -493,6 +494,52 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
     [packageId]
   );
 
+  // Send package created notification to admin
+  const adminSigner = signatureRequests.find(s => s.isPackageAdmin);
+  if (adminSigner && !config.demoMode) {
+    // Find admin email from input signers
+    const adminInput = input.signers.find(s => s.isPackageAdmin) || input.signers[0];
+    if (adminInput?.email) {
+      const statusUrl = `${config.baseUrl}/status/${packageCode}`;
+      // Extract context fields from merge variables
+      let contextFields: { label: string; value: string }[] | undefined;
+      if (input.mergeVariables) {
+        const contextMap: Record<string, string> = {
+          eventName: 'Event',
+          eventDate: 'Event Date',
+          horseName: 'Horse',
+          riderName: 'Rider',
+          trainerName: 'Trainer',
+          ownerName: 'Owner',
+          competitionName: 'Competition',
+          venueName: 'Venue',
+        };
+        const fields: { label: string; value: string }[] = [];
+        for (const [key, label] of Object.entries(contextMap)) {
+          if (input.mergeVariables[key]) {
+            fields.push({ label, value: input.mergeVariables[key] });
+          }
+        }
+        if (fields.length > 0) {
+          contextFields = fields;
+        }
+      }
+      try {
+        await sendPackageCreatedEmail(
+          adminInput.email,
+          adminInput.name,
+          packageCode,
+          documentName,
+          statusUrl,
+          totalUniqueSigners,
+          contextFields
+        );
+      } catch (error) {
+        console.error('Failed to send package created email:', error);
+      }
+    }
+  }
+
   return {
     packageId,
     packageCode,
@@ -682,6 +729,95 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
      WHERE id = ?`,
     [completedCount, newStatus, completedAt, packageId]
   );
+
+  // Send package completed email to admin when all signatures are collected
+  if (newStatus === 'complete' && !config.demoMode) {
+    try {
+      const adminContact = await getPackageAdminContact(packageId);
+      if (adminContact?.adminEmail) {
+        const statusUrl = `${config.baseUrl}/status/${pkg.package_code}`;
+        const roles = await getPackageRoles(packageId);
+
+        // Group roles by consolidated_group to get unique signers
+        const signerGroups = new Map<string, SigningRole[]>();
+        for (const role of roles) {
+          const groupKey = role.consolidated_group || role.id;
+          if (signerGroups.has(groupKey)) {
+            signerGroups.get(groupKey)!.push(role);
+          } else {
+            signerGroups.set(groupKey, [role]);
+          }
+        }
+
+        // Build signer details for email
+        const signers: PackageSigner[] = [];
+        for (const [, roleGroup] of signerGroups) {
+          const primaryRole = roleGroup[0];
+          const roleNames = roleGroup.map(r => r.role_name);
+
+          // Get signature details
+          let signedAt: Date | undefined;
+          let verificationMethod: string | undefined;
+          if (primaryRole.request_id) {
+            const signature = await getSignatureByRequestId(primaryRole.request_id);
+            if (signature) {
+              signedAt = signature.signed_at;
+              verificationMethod = signature.verification_method_used;
+            }
+          }
+
+          signers.push({
+            name: primaryRole.signer_name,
+            roles: roleNames,
+            status: primaryRole.status as 'pending' | 'sent' | 'signed' | 'declined',
+            signedAt,
+            verificationMethod,
+          });
+        }
+
+        // Extract context fields from merge variables
+        let contextFields: { label: string; value: string }[] | undefined;
+        if (pkg.merge_variables) {
+          try {
+            const vars = JSON.parse(pkg.merge_variables);
+            const contextMap: Record<string, string> = {
+              eventName: 'Event',
+              eventDate: 'Event Date',
+              horseName: 'Horse',
+              riderName: 'Rider',
+              trainerName: 'Trainer',
+              ownerName: 'Owner',
+              competitionName: 'Competition',
+              venueName: 'Venue',
+            };
+            const fields: { label: string; value: string }[] = [];
+            for (const [key, label] of Object.entries(contextMap)) {
+              if (vars[key]) {
+                fields.push({ label, value: vars[key] });
+              }
+            }
+            if (fields.length > 0) {
+              contextFields = fields;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        await sendPackageCompletedEmail(
+          adminContact.adminEmail,
+          adminContact.adminName,
+          pkg.package_code,
+          pkg.document_name,
+          statusUrl,
+          signers,
+          contextFields
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send package completed email:', error);
+    }
+  }
 
   // TODO: Send package webhook if callback_url is set
 }
