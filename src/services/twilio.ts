@@ -62,3 +62,21 @@ export async function sendSignatureConfirmationSms(
     to: resolveSmsRecipient(to),
   });
 }
+
+export async function sendDeclineNotificationSms(
+  to: string,
+  signerName: string,
+  documentName: string,
+  declineReason?: string
+): Promise<void> {
+  let message = `${signerName} has declined to sign "${documentName}".`;
+  if (declineReason) {
+    message += ` Reason: ${declineReason}`;
+  }
+
+  await getClient().messages.create({
+    body: message,
+    from: config.twilio.phoneNumber,
+    to: resolveSmsRecipient(to),
+  });
+}

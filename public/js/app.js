@@ -18,6 +18,7 @@
     btnRetry: document.getElementById('btn-retry'),
     expired: document.getElementById('expired'),
     cancelled: document.getElementById('cancelled'),
+    declined: document.getElementById('declined'),
     alreadySigned: document.getElementById('already-signed'),
     progressSteps: document.getElementById('progress-steps'),
     toastContainer: document.getElementById('toast-container'),
@@ -59,6 +60,11 @@
     btnSubmit: document.getElementById('btn-submit'),
     signedAt: document.getElementById('signed-at'),
     demoHint: document.getElementById('demo-hint'),
+    btnDecline: document.getElementById('btn-decline'),
+    declineModal: document.getElementById('decline-modal'),
+    declineReason: document.getElementById('decline-reason'),
+    btnDeclineCancel: document.getElementById('btn-decline-cancel'),
+    btnDeclineConfirm: document.getElementById('btn-decline-confirm'),
   };
 
   // Toast notification system
@@ -139,7 +145,7 @@
 
   // Hide all sections
   function hideAllSections() {
-    const sections = ['loading', 'error', 'expired', 'cancelled', 'alreadySigned',
+    const sections = ['loading', 'error', 'expired', 'cancelled', 'declined', 'alreadySigned',
                       'stepDocument', 'stepVerify', 'stepSign', 'stepSuccess'];
     sections.forEach(s => {
       if (elements[s]) {
@@ -157,7 +163,7 @@
 
     if (progressStep) {
       setProgress(progressStep);
-    } else if (['expired', 'cancelled', 'alreadySigned', 'error', 'loading'].includes(section)) {
+    } else if (['expired', 'cancelled', 'declined', 'alreadySigned', 'error', 'loading'].includes(section)) {
       hideProgress();
     }
   }
@@ -190,9 +196,12 @@
       throw { type: 'expired', message: data.error || 'This request has expired' };
     }
     if (response.status === 409) {
-      // Conflict - already signed or cancelled
+      // Conflict - already signed, cancelled, or declined
       if (data.error && data.error.toLowerCase().includes('cancel')) {
         throw { type: 'cancelled', message: data.error };
+      }
+      if (data.error && data.error.toLowerCase().includes('decline')) {
+        throw { type: 'declined', message: data.error };
       }
       if (data.error && data.error.toLowerCase().includes('sign')) {
         throw { type: 'signed', message: data.error };
@@ -310,6 +319,8 @@
       showSection('expired');
     } else if (error.type === 'cancelled') {
       showSection('cancelled');
+    } else if (error.type === 'declined') {
+      showSection('declined');
     } else if (error.type === 'signed') {
       showSection('alreadySigned');
     } else {
@@ -525,6 +536,52 @@
     }
   }
 
+  // Decline modal functions
+  function showDeclineModal() {
+    if (elements.declineModal) {
+      elements.declineReason.value = '';
+      elements.declineModal.classList.add('visible');
+    }
+  }
+
+  function hideDeclineModal() {
+    if (elements.declineModal) {
+      elements.declineModal.classList.remove('visible');
+    }
+  }
+
+  async function confirmDecline() {
+    const reason = elements.declineReason.value.trim() || undefined;
+
+    try {
+      if (elements.btnDeclineConfirm) {
+        elements.btnDeclineConfirm.disabled = true;
+        elements.btnDeclineConfirm.textContent = 'Declining...';
+      }
+
+      const result = await api('/decline', {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+
+      hideDeclineModal();
+      showSection('declined');
+      hideProgress();
+    } catch (error) {
+      hideDeclineModal();
+      if (error.type) {
+        handleError(error);
+      } else {
+        showToast(error.message || 'Failed to decline request', 'error');
+      }
+    } finally {
+      if (elements.btnDeclineConfirm) {
+        elements.btnDeclineConfirm.disabled = false;
+        elements.btnDeclineConfirm.textContent = 'Confirm Decline';
+      }
+    }
+  }
+
   // Event listeners
   function bindEvents() {
     elements.btnContinueToVerify.addEventListener('click', () => {
@@ -587,6 +644,17 @@
     });
 
     elements.btnSubmit.addEventListener('click', submitSignature);
+
+    // Decline flow
+    if (elements.btnDecline) {
+      elements.btnDecline.addEventListener('click', showDeclineModal);
+    }
+    if (elements.btnDeclineCancel) {
+      elements.btnDeclineCancel.addEventListener('click', hideDeclineModal);
+    }
+    if (elements.btnDeclineConfirm) {
+      elements.btnDeclineConfirm.addEventListener('click', confirmDecline);
+    }
   }
 
   // Initialize

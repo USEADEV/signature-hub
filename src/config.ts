@@ -69,6 +69,10 @@ export const config = {
   request: {
     defaultExpiryDays: parseInt(process.env.SIGNATURE_REQUEST_EXPIRY_DAYS || '7', 10),
   },
+
+  expiration: {
+    checkIntervalMinutes: parseInt(process.env.EXPIRATION_CHECK_INTERVAL_MINUTES || '30', 10),
+  },
 };
 
 export function validateConfig(): void {

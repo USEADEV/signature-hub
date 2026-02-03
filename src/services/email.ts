@@ -1,6 +1,15 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function resolveEmailRecipient(originalTo: string): string {
   if (!config.demoMode && config.testMode && config.testEmail) {
     console.log(`[TEST MODE] Email redirected: ${originalTo} → ${config.testEmail}`);
@@ -116,6 +125,96 @@ export async function sendSignatureConfirmationEmail(
     from: config.email.from,
     to: resolveEmailRecipient(to),
     subject: `Document signed: ${documentName}`,
+    html,
+  });
+}
+
+export async function sendDeclineNotificationEmail(
+  to: string,
+  adminName: string,
+  signerName: string,
+  documentName: string,
+  declineReason?: string
+): Promise<void> {
+  const reasonHtml = declineReason
+    ? `<div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107;">
+        <strong>Reason provided:</strong><br>${escapeHtml(declineReason)}
+      </div>`
+    : '<p style="color: #666;">No reason was provided.</p>';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #dc3545;">Signature Declined</h2>
+      <p>Hello ${adminName},</p>
+      <p><strong>${signerName}</strong> has declined to sign the following document:</p>
+      <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
+        <strong>${documentName}</strong>
+      </div>
+      ${reasonHtml}
+      <p>You may need to contact the signer or arrange for a replacement.</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: resolveEmailRecipient(to),
+    subject: `Signature declined: ${documentName}`,
+    html,
+  });
+}
+
+export async function sendExpirationNotificationEmail(
+  to: string,
+  signerName: string,
+  documentName: string
+): Promise<void> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #856404;">Signature Request Expired</h2>
+      <p>Hello ${signerName},</p>
+      <p>Your signature request for the following document has expired:</p>
+      <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
+        <strong>${documentName}</strong>
+      </div>
+      <p>If you still need to sign this document, please contact the requesting party to send a new signature request.</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: resolveEmailRecipient(to),
+    subject: `Signature request expired: ${documentName}`,
+    html,
+  });
+}
+
+export async function sendCancellationNotificationEmail(
+  to: string,
+  signerName: string,
+  documentName: string
+): Promise<void> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #6c757d;">Signature Request Cancelled</h2>
+      <p>Hello ${signerName},</p>
+      <p>The signature request for the following document has been cancelled:</p>
+      <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0;">
+        <strong>${documentName}</strong>
+      </div>
+      <p>No further action is required from you. If you have questions, please contact the requesting party.</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="color: #666; font-size: 12px;">This is an automated message from SignatureHub.</p>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: resolveEmailRecipient(to),
+    subject: `Signature request cancelled: ${documentName}`,
     html,
   });
 }

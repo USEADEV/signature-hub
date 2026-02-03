@@ -7,6 +7,7 @@ import apiRoutes from './routes/api';
 import signRoutes from './routes/sign';
 import adminRoutes from './routes/admin';
 import { closePool } from './db/connection';
+import { startExpirationChecker, stopExpirationChecker } from './services/expiration';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use((req, res) => {
 async function start() {
   try {
     validateConfig();
+    startExpirationChecker();
 
     app.listen(config.port, () => {
       console.log(`SignatureHub server running on port ${config.port}`);
@@ -79,12 +81,14 @@ async function start() {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down...');
+  stopExpirationChecker();
   await closePool();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down...');
+  stopExpirationChecker();
   await closePool();
   process.exit(0);
 });

@@ -254,6 +254,10 @@ function migrateExistingTables(db: Database.Database): void {
     db.exec(`ALTER TABLE signature_requests ADD COLUMN roles_display TEXT`);
   }
 
+  if (!columns.includes('decline_reason')) {
+    db.exec(`ALTER TABLE signature_requests ADD COLUMN decline_reason TEXT`);
+  }
+
   // Migration: Add tenant_id to signature_requests
   if (!columns.includes('tenant_id')) {
     db.exec(`ALTER TABLE signature_requests ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default-tenant'`);

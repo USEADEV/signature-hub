@@ -146,3 +146,21 @@ export async function sendSignatureConfirmationSms(
     throw new Error(`Failed to send SMS: ${result.error}`);
   }
 }
+
+export async function sendDeclineNotificationSms(
+  to: string,
+  signerName: string,
+  documentName: string,
+  declineReason?: string
+): Promise<void> {
+  let message = `[${config.smsBrand}] ${signerName} has declined to sign "${documentName}".`;
+  if (declineReason) {
+    message += ` Reason: ${declineReason}`;
+  }
+
+  const result = await sendSms(to, message);
+
+  if (!result.success) {
+    throw new Error(`Failed to send SMS: ${result.error}`);
+  }
+}

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import path from 'path';
 import { verificationRateLimit, signatureRateLimit } from '../middleware/rateLimit';
-import { getRequestFromToken, submitSignature } from '../services/signature';
+import { getRequestFromToken, submitSignature, declineRequest } from '../services/signature';
 import { sendVerificationCode, confirmVerificationCode, getAvailableMethods } from '../services/verification';
 import { updateRequestStatus } from '../db/queries';
 import { SigningPageData } from '../types';
@@ -42,6 +42,11 @@ router.get('/:token/data', async (req: Request, res: Response) => {
 
     if (request.status === 'cancelled') {
       res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+
+    if (request.status === 'declined') {
+      res.status(409).json({ error: 'This signature request has been declined' });
       return;
     }
 
@@ -92,6 +97,10 @@ router.post('/:token/verify', verificationRateLimit, async (req: Request, res: R
     }
     if (request.status === 'cancelled') {
       res.status(409).json({ error: 'This signature request has been cancelled' });
+      return;
+    }
+    if (request.status === 'declined') {
+      res.status(409).json({ error: 'This signature request has been declined' });
       return;
     }
     if (request.status === 'expired') {
@@ -158,6 +167,10 @@ router.post('/:token/confirm', verificationRateLimit, async (req: Request, res: 
       res.status(409).json({ error: 'This signature request has been cancelled' });
       return;
     }
+    if (request.status === 'declined') {
+      res.status(409).json({ error: 'This signature request has been declined' });
+      return;
+    }
     if (request.status === 'expired') {
       res.status(410).json({ error: 'This signature request has expired' });
       return;
@@ -205,6 +218,10 @@ router.post('/:token/submit', signatureRateLimit, async (req: Request, res: Resp
       res.status(409).json({ error: 'This signature request has been cancelled' });
       return;
     }
+    if (request.status === 'declined') {
+      res.status(409).json({ error: 'This signature request has been declined' });
+      return;
+    }
     if (request.status === 'expired') {
       res.status(410).json({ error: 'This signature request has expired' });
       return;
@@ -240,6 +257,43 @@ router.post('/:token/submit', signatureRateLimit, async (req: Request, res: Resp
   } catch (error) {
     console.error('Failed to submit signature:', error);
     res.status(500).json({ error: 'Failed to submit signature' });
+  }
+});
+
+// Decline a signature request
+router.post('/:token/decline', signatureRateLimit, async (req: Request, res: Response) => {
+  try {
+    const data = await getRequestFromToken(req.params.token);
+    if (!data) {
+      res.status(410).json({ error: 'This signature request has expired or is no longer available' });
+      return;
+    }
+
+    const { request } = data;
+
+    // Check for terminal states
+    if (['signed', 'expired', 'cancelled', 'declined'].includes(request.status)) {
+      res.status(409).json({ error: `This signature request has already been ${request.status}` });
+      return;
+    }
+
+    // Accept optional reason (trimmed, max 500 chars)
+    let reason: string | undefined;
+    if (req.body.reason && typeof req.body.reason === 'string') {
+      reason = req.body.reason.trim().substring(0, 500);
+    }
+
+    const result = await declineRequest(req.params.token, reason);
+
+    if (!result.success) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+
+    res.json({ success: true, message: 'Signature request declined' });
+  } catch (error) {
+    console.error('Failed to decline signature request:', error);
+    res.status(500).json({ error: 'Failed to decline signature request' });
   }
 });
 

@@ -518,6 +518,22 @@ export async function listTemplates(jurisdiction: string | undefined, tenantId: 
   return templates;
 }
 
+export async function updateRequestDeclined(id: string, declineReason?: string): Promise<void> {
+  await run(
+    `UPDATE signature_requests SET status = 'declined', decline_reason = ? WHERE id = ? AND status NOT IN ('signed', 'expired', 'cancelled', 'declined')`,
+    [declineReason || null, id]
+  );
+}
+
+export async function getExpiredRequests(): Promise<SignatureRequest[]> {
+  return query<SignatureRequest[]>(
+    `SELECT * FROM signature_requests
+     WHERE expires_at < NOW()
+     AND status NOT IN ('signed', 'expired', 'cancelled', 'declined')`,
+    []
+  );
+}
+
 export async function deleteTemplate(templateCode: string, tenantId: string): Promise<boolean> {
   // Soft delete by marking inactive
   await run(

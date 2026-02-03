@@ -20,7 +20,7 @@ export interface ApiKey {
 
 export type VerificationMethod = 'email' | 'sms' | 'both';
 
-export type RequestStatus = 'pending' | 'sent' | 'viewed' | 'verified' | 'signed' | 'expired' | 'cancelled';
+export type RequestStatus = 'pending' | 'sent' | 'viewed' | 'verified' | 'signed' | 'expired' | 'cancelled' | 'declined';
 
 export type SignatureType = 'typed' | 'drawn';
 
@@ -58,6 +58,7 @@ export interface SignatureRequest {
   package_id?: string;
   roles_display?: string;
   tenant_id?: string;
+  decline_reason?: string;
 }
 
 export interface SignatureToken {
@@ -180,7 +181,7 @@ export interface UpdateTemplateInput {
 }
 
 export interface WebhookPayload {
-  event: 'signature.completed' | 'signature.expired' | 'signature.cancelled';
+  event: 'signature.completed' | 'signature.expired' | 'signature.cancelled' | 'signature.declined';
   requestId: string;
   referenceCode: string;
   externalRef?: string;
@@ -193,6 +194,7 @@ export interface WebhookPayload {
   signedAt?: Date;
   signatureType?: SignatureType;
   signerName: string;
+  declineReason?: string;
 }
 
 export interface RequestStatusResponse {
@@ -212,6 +214,7 @@ export interface RequestStatusResponse {
   createdAt: Date;
   expiresAt?: Date;
   signedAt?: Date;
+  declineReason?: string;
   signature?: {
     signatureType: SignatureType;
     typedName?: string;

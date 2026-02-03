@@ -7,6 +7,7 @@ import {
   getRequestByRef,
   getRequestStatus,
   getSignature,
+  sendCancellationNotifications,
 } from '../services/signature';
 import {
   listRequests,
@@ -200,12 +201,20 @@ router.delete('/requests/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    if (request.status === 'signed') {
-      res.status(400).json({ error: 'Cannot cancel a signed request' });
+    if (['signed', 'expired', 'cancelled', 'declined'].includes(request.status)) {
+      res.status(400).json({ error: `Cannot cancel a ${request.status} request` });
       return;
     }
 
     await updateRequestStatus(req.params.id, 'cancelled', req.tenantId!);
+
+    // Send cancellation notifications (non-blocking)
+    try {
+      await sendCancellationNotifications(request);
+    } catch (error) {
+      console.error('Failed to send cancellation notifications:', error);
+    }
+
     res.json({ success: true, message: 'Request cancelled' });
   } catch (error) {
     console.error('Failed to cancel request:', error);

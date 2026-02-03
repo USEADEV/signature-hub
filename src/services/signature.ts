@@ -17,16 +17,20 @@ import {
   createSignature as dbCreateSignature,
   getSignatureByRequestId,
   updateRequestStatus,
+  updateRequestDeclined,
 } from '../db/queries';
 import { config } from '../config';
-import { sendSignatureRequestEmail, sendSignatureConfirmationEmail } from './email';
+import { sendSignatureRequestEmail, sendSignatureConfirmationEmail, sendDeclineNotificationEmail, sendCancellationNotificationEmail } from './email';
 import { sendSignatureRequestSms as sendSmsTwilio, sendSignatureConfirmationSms as sendConfirmTwilio } from './twilio';
 import { sendSignatureRequestSms as sendSmsMandrill, sendSignatureConfirmationSms as sendConfirmMandrill } from './mandrill-sms';
-import { onSignatureCompleted } from './package';
+import { sendDeclineNotificationSms as sendDeclineSmsTwilio } from './twilio';
+import { sendDeclineNotificationSms as sendDeclineSmsMandrill } from './mandrill-sms';
+import { onSignatureCompleted, getPackageAdminContact } from './package';
 
 // Select SMS provider based on config
 const sendSignatureRequestSms = config.smsProvider === 'mandrill' ? sendSmsMandrill : sendSmsTwilio;
 const sendSignatureConfirmationSms = config.smsProvider === 'mandrill' ? sendConfirmMandrill : sendConfirmTwilio;
+const sendDeclineNotificationSms = config.smsProvider === 'mandrill' ? sendDeclineSmsMandrill : sendDeclineSmsTwilio;
 
 export async function createSignatureRequest(input: CreateRequestInput, tenantId: string): Promise<CreateRequestResponse> {
   const { request, token } = await dbCreateRequest(input, tenantId);
@@ -112,6 +116,7 @@ export async function getRequestStatus(request: SignatureRequest): Promise<Reque
     createdAt: request.created_at,
     expiresAt: request.expires_at,
     signedAt: request.signed_at,
+    declineReason: request.decline_reason,
   };
 
   if (signature) {
@@ -222,7 +227,10 @@ export async function submitSignature(
   // Send callback to originator if configured
   if (request.callback_url) {
     try {
-      await sendCallback(request, signature);
+      await sendWebhookCallback(request, 'signature.completed', {
+        signedAt: signature.signed_at,
+        signatureType: signature.signature_type,
+      });
     } catch (error) {
       console.error('Failed to send callback:', error);
     }
@@ -238,11 +246,15 @@ export async function submitSignature(
   return { success: true, signature };
 }
 
-async function sendCallback(request: SignatureRequest, signature: Signature): Promise<void> {
+export async function sendWebhookCallback(
+  request: SignatureRequest,
+  event: WebhookPayload['event'],
+  extra?: Partial<WebhookPayload>
+): Promise<void> {
   if (!request.callback_url) return;
 
   const payload: WebhookPayload = {
-    event: 'signature.completed',
+    event,
     requestId: request.id,
     referenceCode: request.reference_code,
     externalRef: request.external_ref,
@@ -252,16 +264,15 @@ async function sendCallback(request: SignatureRequest, signature: Signature): Pr
     metadata: request.metadata ? JSON.parse(request.metadata) : undefined,
     waiverTemplateCode: request.waiver_template_code,
     waiverTemplateVersion: request.waiver_template_version,
-    signedAt: signature.signed_at,
-    signatureType: signature.signature_type,
     signerName: request.signer_name,
+    ...extra,
   };
 
   const response = await fetch(request.callback_url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Signature-Event': 'signature.completed',
+      'X-Signature-Event': event,
     },
     body: JSON.stringify(payload),
   });
@@ -273,4 +284,89 @@ async function sendCallback(request: SignatureRequest, signature: Signature): Pr
 
 export async function getSignature(requestId: string): Promise<Signature | null> {
   return getSignatureByRequestId(requestId);
+}
+
+export async function declineRequest(
+  token: string,
+  declineReason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const data = await getRequestFromToken(token);
+  if (!data) {
+    return { success: false, error: 'Invalid or expired signature request' };
+  }
+
+  const { request } = data;
+
+  // Check terminal states
+  if (['signed', 'expired', 'cancelled', 'declined'].includes(request.status)) {
+    return { success: false, error: `Request is already ${request.status}` };
+  }
+
+  // Update status to declined
+  await updateRequestDeclined(request.id, declineReason);
+
+  // Send webhook if callback_url is set
+  if (request.callback_url) {
+    try {
+      await sendWebhookCallback(request, 'signature.declined', {
+        declineReason,
+      });
+    } catch (error) {
+      console.error('Failed to send decline webhook:', error);
+    }
+  }
+
+  // Notify package admin if this request is part of a package
+  if (request.package_id && !config.demoMode) {
+    try {
+      const adminContact = await getPackageAdminContact(request.package_id);
+      if (adminContact) {
+        if (adminContact.adminEmail) {
+          await sendDeclineNotificationEmail(
+            adminContact.adminEmail,
+            adminContact.adminName,
+            request.signer_name,
+            request.document_name,
+            declineReason
+          );
+        }
+        if (adminContact.adminPhone) {
+          await sendDeclineNotificationSms(
+            adminContact.adminPhone,
+            request.signer_name,
+            request.document_name,
+            declineReason
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Failed to notify package admin of decline:', error);
+    }
+  }
+
+  return { success: true };
+}
+
+export async function sendCancellationNotifications(request: SignatureRequest): Promise<void> {
+  // Send webhook if callback_url is set
+  if (request.callback_url) {
+    try {
+      await sendWebhookCallback(request, 'signature.cancelled');
+    } catch (error) {
+      console.error('Failed to send cancellation webhook:', error);
+    }
+  }
+
+  // Notify signer via email
+  if (!config.demoMode && request.signer_email) {
+    try {
+      await sendCancellationNotificationEmail(
+        request.signer_email,
+        request.signer_name,
+        request.document_name
+      );
+    } catch (error) {
+      console.error('Failed to send cancellation email:', error);
+    }
+  }
 }

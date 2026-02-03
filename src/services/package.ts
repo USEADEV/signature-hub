@@ -663,6 +663,21 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
   // TODO: Send package webhook if callback_url is set
 }
 
+// Get package admin contact info
+export async function getPackageAdminContact(packageId: string): Promise<{ adminName: string; adminEmail?: string; adminPhone?: string } | null> {
+  const adminRole = sqliteQueryOne<SigningRole>(
+    `SELECT * FROM signing_roles WHERE package_id = ? AND is_package_admin = 1 LIMIT 1`,
+    [packageId]
+  );
+  if (!adminRole) return null;
+
+  return {
+    adminName: adminRole.signer_name,
+    adminEmail: adminRole.signer_email || undefined,
+    adminPhone: adminRole.signer_phone || undefined,
+  };
+}
+
 // List packages with optional filters
 export async function listPackages(filters: {
   status?: PackageStatus;
