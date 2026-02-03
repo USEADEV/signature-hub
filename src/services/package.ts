@@ -375,6 +375,7 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
       externalRef: input.externalRef,
       externalType: input.externalType,
       jurisdiction: input.jurisdiction,
+      mergeVariables: input.mergeVariables,
       callbackUrl: input.callbackUrl,
       createdBy: input.createdBy,
     }, tenantId);
@@ -875,6 +876,7 @@ export async function replaceSigner(
     externalRef: pkg.external_ref || undefined,
     externalType: pkg.external_type || undefined,
     jurisdiction: pkg.jurisdiction || undefined,
+    mergeVariables: pkg.merge_variables ? JSON.parse(pkg.merge_variables) : undefined,
     callbackUrl: pkg.callback_url || undefined,
   }, tenantId);
 
