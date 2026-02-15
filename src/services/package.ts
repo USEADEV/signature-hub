@@ -244,13 +244,14 @@ function detectVerificationMethod(email?: string, phone?: string): VerificationM
   return 'email';
 }
 
-// Consolidate signers by email/phone - same person with multiple roles gets one signature request
+// Consolidate signers by contact + name - same person with multiple roles gets one signature request.
+// Different people sharing the same email (e.g. minor rider using parent's email) get separate requests.
 function consolidateSigners(signers: SignerInput[]): Map<string, SignerInput[]> {
   const consolidated = new Map<string, SignerInput[]>();
 
   for (const signer of signers) {
-    // Use email as primary key, fallback to phone, fallback to name
-    const key = signer.email?.toLowerCase() || signer.phone || signer.name.toLowerCase();
+    const contact = signer.email?.toLowerCase() || signer.phone || '';
+    const key = contact + '::' + signer.name.toLowerCase();
 
     if (consolidated.has(key)) {
       consolidated.get(key)!.push(signer);
