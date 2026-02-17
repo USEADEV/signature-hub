@@ -76,7 +76,9 @@ router.get('/:packageCode/data', async (req: Request, res: Response) => {
         if (signer.status === 'signed' && signer.requestId) {
           const signature = await getSignatureByRequestId(signer.requestId);
           if (signature) {
-            signedAt = signature.signed_at.toISOString();
+            signedAt = signature.signed_at instanceof Date
+              ? signature.signed_at.toISOString()
+              : String(signature.signed_at);
             verificationMethod = signature.verification_method_used;
           }
         }
