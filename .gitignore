@@ -5,3 +5,6 @@ dist/
 .DS_Store
 # Trigger redeploy
 data/
+deploy/
+deploy.zip
+deploy.tar
