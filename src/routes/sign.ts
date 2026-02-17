@@ -334,7 +334,7 @@ router.get('/:token/replace-info/:roleId', async (req: Request, res: Response) =
     }
 
     // Verify the token belongs to a package admin
-    const adminRole = getRoleByRequestId(request.id);
+    const adminRole = await getRoleByRequestId(request.id);
     if (!adminRole || !adminRole.is_package_admin) {
       res.status(403).json({ error: 'Only the package admin can replace signers' });
       return;
@@ -381,7 +381,7 @@ router.post('/:token/replace-signer', signatureRateLimit, async (req: Request, r
     }
 
     // Verify the token belongs to a package admin
-    const adminRole = getRoleByRequestId(request.id);
+    const adminRole = await getRoleByRequestId(request.id);
     if (!adminRole || !adminRole.is_package_admin) {
       res.status(403).json({ error: 'Only the package admin can replace signers' });
       return;

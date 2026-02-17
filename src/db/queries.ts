@@ -16,6 +16,7 @@ import {
 // Import database modules
 import { query as mysqlQuery, queryOne as mysqlQueryOne } from './connection';
 import { getSqliteDb } from './sqlite';
+import { query as pgQuery, queryOne as pgQueryOne, run as pgRun } from './postgres';
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -66,28 +67,71 @@ function sqliteRun(sql: string, params: unknown[] = []): void {
   stmt.run(...params);
 }
 
+/**
+ * Normalize SQL for the target database.
+ * - SQLite: NOW() → datetime('now')
+ * - MySQL/PostgreSQL: datetime('now') → NOW()
+ */
+function normalizeSql(sql: string): string {
+  if (config.dbType === 'sqlite') {
+    return sql.replace(/NOW\(\)/g, "datetime('now')");
+  }
+  // MySQL and PostgreSQL both support NOW()
+  return sql.replace(/datetime\('now'\)/g, 'NOW()');
+}
+
 // Generic query functions that route to the right DB
 async function query<T>(sql: string, params: unknown[] = []): Promise<T> {
+  const normalized = normalizeSql(sql);
   if (config.dbType === 'sqlite') {
-    return sqliteQuery<T>(sql.replace(/NOW\(\)/g, "datetime('now')"), params) as T;
+    return sqliteQuery<T>(normalized, params) as T;
   }
-  return mysqlQuery<T>(sql, params);
+  if (config.dbType === 'postgres') {
+    return pgQuery<T>(normalized, params);
+  }
+  return mysqlQuery<T>(normalized, params);
 }
 
 async function queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> {
+  const normalized = normalizeSql(sql);
   if (config.dbType === 'sqlite') {
-    return sqliteQueryOne<T>(sql.replace(/NOW\(\)/g, "datetime('now')"), params);
+    return sqliteQueryOne<T>(normalized, params);
   }
-  return mysqlQueryOne<T>(sql, params);
+  if (config.dbType === 'postgres') {
+    return pgQueryOne<T>(normalized, params);
+  }
+  return mysqlQueryOne<T>(normalized, params);
 }
 
 async function run(sql: string, params: unknown[] = []): Promise<void> {
+  const normalized = normalizeSql(sql);
   if (config.dbType === 'sqlite') {
-    sqliteRun(sql.replace(/NOW\(\)/g, "datetime('now')"), params);
+    sqliteRun(normalized, params);
     return;
   }
-  await mysqlQuery(sql, params);
+  if (config.dbType === 'postgres') {
+    await pgRun(normalized, params);
+    return;
+  }
+  await mysqlQuery(normalized, params);
 }
+
+async function runReturningCount(sql: string, params: unknown[] = []): Promise<number> {
+  const normalized = normalizeSql(sql);
+  if (config.dbType === 'sqlite') {
+    const db = getSqliteDb();
+    const result = db.prepare(normalized).run(...params);
+    return result.changes;
+  }
+  if (config.dbType === 'postgres') {
+    return pgRun(normalized, params);
+  }
+  const result = await mysqlQuery<{ affectedRows: number }>(normalized, params);
+  return result.affectedRows;
+}
+
+// Export centralized DB functions for use by other modules
+export { query as dbQuery, queryOne as dbQueryOne, run as dbRun, runReturningCount as dbRunReturningCount };
 
 // HTML escape for XSS prevention in merge variables
 function escapeHtml(str: string): string {
@@ -297,16 +341,11 @@ export async function listRequests(filters: RequestFilters, tenantId: string): P
 }
 
 export async function deleteRequest(id: string, tenantId: string): Promise<boolean> {
-  if (config.dbType === 'sqlite') {
-    const db = getSqliteDb();
-    const result = db.prepare('DELETE FROM signature_requests WHERE id = ? AND tenant_id = ?').run(id, tenantId);
-    return result.changes > 0;
-  }
-  const result = await mysqlQuery<{ affectedRows: number }>(
-    `DELETE FROM signature_requests WHERE id = ? AND tenant_id = ?`,
+  const count = await runReturningCount(
+    'DELETE FROM signature_requests WHERE id = ? AND tenant_id = ?',
     [id, tenantId]
   );
-  return result.affectedRows > 0;
+  return count > 0;
 }
 
 // ============================================
@@ -387,7 +426,7 @@ export async function verifyCode(tokenId: string, code: string): Promise<{ succe
   }
 
   await run(
-    `UPDATE signature_tokens SET is_verified = 1, verified_at = NOW() WHERE id = ?`,
+    `UPDATE signature_tokens SET is_verified = TRUE, verified_at = NOW() WHERE id = ?`,
     [tokenId]
   );
 
@@ -439,7 +478,7 @@ export async function createTemplate(input: CreateTemplateInput, tenantId: strin
   await run(
     `INSERT INTO waiver_templates
      (id, template_code, name, description, html_content, jurisdiction, version, is_active, created_by, tenant_id)
-     VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, 1, TRUE, ?, ?)`,
     [
       id,
       input.templateCode,
@@ -459,12 +498,12 @@ export async function getTemplateByCode(templateCode: string, tenantId?: string)
   let template: WaiverTemplate | null;
   if (tenantId) {
     template = await queryOne<WaiverTemplate>(
-      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1 AND tenant_id = ?`,
+      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = TRUE AND tenant_id = ?`,
       [templateCode, tenantId]
     );
   } else {
     template = await queryOne<WaiverTemplate>(
-      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = 1`,
+      `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = TRUE`,
       [templateCode]
     );
   }
@@ -511,10 +550,10 @@ export async function updateTemplate(templateCode: string, input: UpdateTemplate
   }
   if (input.isActive !== undefined) {
     updates.push('is_active = ?');
-    params.push(input.isActive ? 1 : 0);
+    params.push(input.isActive ? true : false);
   }
 
-  updates.push("updated_at = datetime('now')");
+  updates.push("updated_at = NOW()");
 
   if (updates.length === 1) {
     return existing; // Only updated_at, no real changes
@@ -531,7 +570,7 @@ export async function updateTemplate(templateCode: string, input: UpdateTemplate
 }
 
 export async function listTemplates(jurisdiction: string | undefined, tenantId: string): Promise<WaiverTemplate[]> {
-  let sql = 'SELECT * FROM waiver_templates WHERE is_active = 1 AND tenant_id = ?';
+  let sql = 'SELECT * FROM waiver_templates WHERE is_active = TRUE AND tenant_id = ?';
   const params: unknown[] = [tenantId];
 
   if (jurisdiction) {
@@ -574,7 +613,7 @@ export async function getExpiredRequests(): Promise<SignatureRequest[]> {
 export async function deleteTemplate(templateCode: string, tenantId: string): Promise<boolean> {
   // Soft delete by marking inactive
   await run(
-    `UPDATE waiver_templates SET is_active = 0, updated_at = datetime('now') WHERE template_code = ? AND tenant_id = ?`,
+    `UPDATE waiver_templates SET is_active = FALSE, updated_at = NOW() WHERE template_code = ? AND tenant_id = ?`,
     [templateCode, tenantId]
   );
   return true;

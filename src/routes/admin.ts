@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import { getSqliteDb } from '../db/sqlite';
+import { dbQueryOne, dbQuery, dbRun, dbRunReturningCount } from '../db/queries';
 import { adminRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
@@ -41,7 +41,7 @@ router.use(adminAuth);
 router.use(adminRateLimit);
 
 // Create a new API key for a tenant
-router.post('/api-keys', (req: Request, res: Response) => {
+router.post('/api-keys', async (req: Request, res: Response) => {
   try {
     const { tenantName } = req.body;
     if (!tenantName) {
@@ -53,11 +53,11 @@ router.post('/api-keys', (req: Request, res: Response) => {
     const tenantId = uuidv4();
     const apiKey = `sk_${crypto.randomBytes(24).toString('hex')}`;
 
-    const db = getSqliteDb();
-    db.prepare(
+    await dbRun(
       `INSERT INTO api_keys (id, api_key, tenant_id, tenant_name, is_active)
-       VALUES (?, ?, ?, ?, 1)`
-    ).run(id, apiKey, tenantId, tenantName);
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [id, apiKey, tenantId, tenantName]
+    );
 
     res.status(201).json({
       id,
@@ -72,12 +72,12 @@ router.post('/api-keys', (req: Request, res: Response) => {
 });
 
 // List API keys (without revealing key values)
-router.get('/api-keys', (_req: Request, res: Response) => {
+router.get('/api-keys', async (_req: Request, res: Response) => {
   try {
-    const db = getSqliteDb();
-    const keys = db.prepare(
-      'SELECT id, tenant_id, tenant_name, is_active, created_at, updated_at FROM api_keys ORDER BY created_at DESC'
-    ).all();
+    const keys = await dbQuery<{ id: string; tenant_id: string; tenant_name: string; is_active: number | boolean; created_at: string; updated_at: string }[]>(
+      'SELECT id, tenant_id, tenant_name, is_active, created_at, updated_at FROM api_keys ORDER BY created_at DESC',
+      []
+    );
     res.json(keys);
   } catch (error) {
     console.error('Failed to list API keys:', error);
@@ -86,14 +86,14 @@ router.get('/api-keys', (_req: Request, res: Response) => {
 });
 
 // Deactivate an API key
-router.delete('/api-keys/:id', (req: Request, res: Response) => {
+router.delete('/api-keys/:id', async (req: Request, res: Response) => {
   try {
-    const db = getSqliteDb();
-    const result = db.prepare(
-      "UPDATE api_keys SET is_active = 0, updated_at = datetime('now') WHERE id = ?"
-    ).run(req.params.id);
+    const count = await dbRunReturningCount(
+      "UPDATE api_keys SET is_active = FALSE, updated_at = NOW() WHERE id = ?",
+      [req.params.id]
+    );
 
-    if (result.changes === 0) {
+    if (count === 0) {
       res.status(404).json({ error: 'API key not found' });
       return;
     }

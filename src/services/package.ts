@@ -17,8 +17,7 @@ import {
   ReplaceSignerResponse,
   VerificationMethod,
 } from '../types';
-import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId, updateRequestStatus } from '../db/queries';
-import { getSqliteDb } from '../db/sqlite';
+import { createRequest, getTemplateByCode, getRequestById, getTokenByRequestId, updateRequestStatus, dbQuery, dbQueryOne, dbRun } from '../db/queries';
 import { sendSignatureRequestEmail, sendPackageCreatedEmail, sendPackageCompletedEmail, PackageSigner } from './email';
 import { sendSignatureRequestSms as sendSmsTwilio } from './twilio';
 import { sendSignatureRequestSms as sendSmsMandrill } from './mandrill-sms';
@@ -140,23 +139,6 @@ function generatePackageCode(): string {
   return code;
 }
 
-function sqliteQuery<T>(sql: string, params: unknown[] = []): T[] {
-  const db = getSqliteDb();
-  const stmt = db.prepare(sql);
-  return stmt.all(...params) as T[];
-}
-
-function sqliteQueryOne<T>(sql: string, params: unknown[] = []): T | null {
-  const results = sqliteQuery<T>(sql, params);
-  return results.length > 0 ? results[0] : null;
-}
-
-function sqliteRun(sql: string, params: unknown[] = []): void {
-  const db = getSqliteDb();
-  const stmt = db.prepare(sql);
-  stmt.run(...params);
-}
-
 // HTML escape for XSS prevention in merge variables
 function escapeHtml(str: string): string {
   return str
@@ -217,13 +199,13 @@ function buildSignerVariables(
 // Get jurisdiction addendum if available
 export async function getJurisdictionAddendum(jurisdictionCode: string, tenantId?: string): Promise<JurisdictionAddendum | null> {
   if (tenantId) {
-    return sqliteQueryOne<JurisdictionAddendum>(
-      `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = 1 AND tenant_id = ?`,
+    return await dbQueryOne<JurisdictionAddendum>(
+      `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = TRUE AND tenant_id = ?`,
       [jurisdictionCode, tenantId]
     );
   }
-  return sqliteQueryOne<JurisdictionAddendum>(
-    `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = 1`,
+  return await dbQueryOne<JurisdictionAddendum>(
+    `SELECT * FROM jurisdiction_addendums WHERE jurisdiction_code = ? AND is_active = TRUE`,
     [jurisdictionCode]
   );
 }
@@ -341,7 +323,7 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
   const totalUniqueSigners = consolidatedMap.size;
 
   // Create the package (store base content without signer-specific variables)
-  sqliteRun(
+  await dbRun(
     `INSERT INTO signing_packages
      (id, package_code, external_ref, external_type, template_code, template_version,
       document_name, document_content, jurisdiction, merge_variables, event_date, status,
@@ -405,7 +387,7 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
     }, tenantId);
 
     // Update the request with package info and roles
-    sqliteRun(
+    await dbRun(
       `UPDATE signature_requests SET package_id = ?, roles_display = ? WHERE id = ?`,
       [packageId, roles.join(', '), request.id]
     );
@@ -416,7 +398,7 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
     // Create role records for each role this signer has
     for (const signer of signerGroup) {
       const roleId = uuidv4();
-      sqliteRun(
+      await dbRun(
         `INSERT INTO signing_roles
          (id, package_id, role_name, signer_name, signer_email, signer_phone,
           date_of_birth, is_minor, is_package_admin, request_id, consolidated_group, status)
@@ -429,8 +411,8 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
           signer.email || null,
           signer.phone || null,
           signer.dateOfBirth || null,
-          signer.isMinor ? 1 : 0,
-          isGroupAdmin ? 1 : 0,
+          signer.isMinor ? true : false,
+          isGroupAdmin ? true : false,
           request.id,
           consolidatedGroupId,
         ]
@@ -490,7 +472,7 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
   }
 
   // Update package status to 'pending' (all requests created)
-  sqliteRun(
+  await dbRun(
     `UPDATE signing_packages SET status = 'pending' WHERE id = ?`,
     [packageId]
   );
@@ -556,12 +538,12 @@ export async function createPackage(input: CreatePackageInput, tenantId: string)
 // Get package by ID
 export async function getPackageById(id: string, tenantId?: string): Promise<SigningPackage | null> {
   if (tenantId) {
-    return sqliteQueryOne<SigningPackage>(
+    return await dbQueryOne<SigningPackage>(
       `SELECT * FROM signing_packages WHERE id = ? AND tenant_id = ?`,
       [id, tenantId]
     );
   }
-  return sqliteQueryOne<SigningPackage>(
+  return await dbQueryOne<SigningPackage>(
     `SELECT * FROM signing_packages WHERE id = ?`,
     [id]
   );
@@ -570,12 +552,12 @@ export async function getPackageById(id: string, tenantId?: string): Promise<Sig
 // Get package by code
 export async function getPackageByCode(packageCode: string, tenantId?: string): Promise<SigningPackage | null> {
   if (tenantId) {
-    return sqliteQueryOne<SigningPackage>(
+    return await dbQueryOne<SigningPackage>(
       `SELECT * FROM signing_packages WHERE package_code = ? AND tenant_id = ?`,
       [packageCode, tenantId]
     );
   }
-  return sqliteQueryOne<SigningPackage>(
+  return await dbQueryOne<SigningPackage>(
     `SELECT * FROM signing_packages WHERE package_code = ?`,
     [packageCode]
   );
@@ -583,7 +565,7 @@ export async function getPackageByCode(packageCode: string, tenantId?: string): 
 
 // Get roles for a package
 export async function getPackageRoles(packageId: string): Promise<SigningRole[]> {
-  const roles = sqliteQuery<SigningRole>(
+  const roles = await dbQuery<SigningRole[]>(
     `SELECT * FROM signing_roles WHERE package_id = ? ORDER BY role_name`,
     [packageId]
   );
@@ -702,13 +684,13 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
   const packageId = request.package_id;
 
   // Update all roles associated with this request
-  sqliteRun(
-    `UPDATE signing_roles SET status = 'signed', signed_at = datetime('now') WHERE request_id = ?`,
+  await dbRun(
+    `UPDATE signing_roles SET status = 'signed', signed_at = NOW() WHERE request_id = ?`,
     [requestId]
   );
 
   // Count completed unique signers (by consolidated_group)
-  const completedGroups = sqliteQuery<{ count: number }>(
+  const completedGroups = await dbQuery<{ count: number }[]>(
     `SELECT COUNT(DISTINCT consolidated_group) as count
      FROM signing_roles
      WHERE package_id = ? AND status = 'signed'`,
@@ -724,9 +706,9 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
   const newStatus: PackageStatus = completedCount >= pkg.total_signers ? 'complete' : 'partial';
   const completedAt = newStatus === 'complete' ? new Date().toISOString() : null;
 
-  sqliteRun(
+  await dbRun(
     `UPDATE signing_packages
-     SET completed_signers = ?, status = ?, completed_at = ?, updated_at = datetime('now')
+     SET completed_signers = ?, status = ?, completed_at = ?, updated_at = NOW()
      WHERE id = ?`,
     [completedCount, newStatus, completedAt, packageId]
   );
@@ -825,8 +807,8 @@ export async function onSignatureCompleted(requestId: string): Promise<void> {
 
 // Get package admin contact info
 export async function getPackageAdminContact(packageId: string): Promise<{ adminName: string; adminEmail?: string; adminPhone?: string; adminRequestId?: string } | null> {
-  const adminRole = sqliteQueryOne<SigningRole>(
-    `SELECT * FROM signing_roles WHERE package_id = ? AND is_package_admin = 1 LIMIT 1`,
+  const adminRole = await dbQueryOne<SigningRole>(
+    `SELECT * FROM signing_roles WHERE package_id = ? AND is_package_admin = TRUE LIMIT 1`,
     [packageId]
   );
   if (!adminRole) return null;
@@ -862,7 +844,7 @@ export async function listPackages(filters: {
   const limit = filters?.limit || 100;
   const offset = filters?.offset || 0;
 
-  return sqliteQuery<SigningPackage>(
+  return await dbQuery<SigningPackage[]>(
     `SELECT * FROM signing_packages ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
@@ -878,15 +860,15 @@ export async function upsertJurisdictionAddendum(
   const existing = await getJurisdictionAddendum(jurisdictionCode, tenantId);
 
   if (existing) {
-    sqliteRun(
+    await dbRun(
       `UPDATE jurisdiction_addendums
-       SET jurisdiction_name = ?, addendum_html = ?, updated_at = datetime('now')
+       SET jurisdiction_name = ?, addendum_html = ?, updated_at = NOW()
        WHERE jurisdiction_code = ? AND tenant_id = ?`,
       [jurisdictionName, addendumHtml, jurisdictionCode, tenantId]
     );
   } else {
     const id = uuidv4();
-    sqliteRun(
+    await dbRun(
       `INSERT INTO jurisdiction_addendums (id, jurisdiction_code, jurisdiction_name, addendum_html, tenant_id)
        VALUES (?, ?, ?, ?, ?)`,
       [id, jurisdictionCode, jurisdictionName, addendumHtml, tenantId]
@@ -898,8 +880,8 @@ export async function upsertJurisdictionAddendum(
 
 // List jurisdiction addendums
 export async function listJurisdictions(tenantId: string): Promise<JurisdictionAddendum[]> {
-  const addendums = sqliteQuery<JurisdictionAddendum>(
-    `SELECT * FROM jurisdiction_addendums WHERE is_active = 1 AND tenant_id = ? ORDER BY jurisdiction_name`,
+  const addendums = await dbQuery<JurisdictionAddendum[]>(
+    `SELECT * FROM jurisdiction_addendums WHERE is_active = TRUE AND tenant_id = ? ORDER BY jurisdiction_name`,
     [tenantId]
   );
   return addendums.map(a => ({
@@ -908,9 +890,9 @@ export async function listJurisdictions(tenantId: string): Promise<JurisdictionA
   }));
 }
 
-// Get a specific role by ID
-export function getRoleByRequestId(requestId: string): SigningRole | null {
-  const role = sqliteQueryOne<SigningRole>(
+// Get a specific role by request ID
+export async function getRoleByRequestId(requestId: string): Promise<SigningRole | null> {
+  const role = await dbQueryOne<SigningRole>(
     `SELECT * FROM signing_roles WHERE request_id = ? LIMIT 1`,
     [requestId]
   );
@@ -922,7 +904,7 @@ export function getRoleByRequestId(requestId: string): SigningRole | null {
 }
 
 export async function getRoleById(roleId: string): Promise<SigningRole | null> {
-  const role = sqliteQueryOne<SigningRole>(
+  const role = await dbQueryOne<SigningRole>(
     `SELECT * FROM signing_roles WHERE id = ?`,
     [roleId]
   );
@@ -977,7 +959,7 @@ export async function replaceSigner(
 
   // Check if there are other roles with the same consolidated_group
   // If so, we need to handle them together
-  const consolidatedRoles = sqliteQuery<SigningRole>(
+  const consolidatedRoles = await dbQuery<SigningRole[]>(
     `SELECT * FROM signing_roles WHERE consolidated_group = ? AND id != ?`,
     [role.consolidated_group, roleId]
   );
@@ -1040,13 +1022,13 @@ export async function replaceSigner(
   }, tenantId);
 
   // Update request with package info
-  sqliteRun(
+  await dbRun(
     `UPDATE signature_requests SET package_id = ?, roles_display = ? WHERE id = ?`,
     [pkg.id, roles.join(', '), newRequest.id]
   );
 
   // Update the role with new signer info
-  sqliteRun(
+  await dbRun(
     `UPDATE signing_roles
      SET signer_name = ?, signer_email = ?, signer_phone = ?, date_of_birth = ?,
          request_id = ?, status = 'sent'
@@ -1063,7 +1045,7 @@ export async function replaceSigner(
 
   // Update any other roles in the same consolidated group
   for (const consolidatedRole of consolidatedRoles) {
-    sqliteRun(
+    await dbRun(
       `UPDATE signing_roles
        SET signer_name = ?, signer_email = ?, signer_phone = ?, request_id = ?, status = 'sent'
        WHERE id = ?`,
@@ -1079,7 +1061,7 @@ export async function replaceSigner(
 
   // Cancel the old request if it exists
   if (oldRequestId) {
-    sqliteRun(
+    await dbRun(
       `UPDATE signature_requests SET status = 'cancelled' WHERE id = ?`,
       [oldRequestId]
     );

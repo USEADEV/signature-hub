@@ -8,6 +8,7 @@ import signRoutes from './routes/sign';
 import adminRoutes from './routes/admin';
 import statusRoutes from './routes/status';
 import { closePool } from './db/connection';
+import { initializePostgres, closePool as closePgPool } from './db/postgres';
 import { startExpirationChecker, stopExpirationChecker } from './services/expiration';
 
 const app = express();
@@ -93,11 +94,18 @@ app.use((req, res) => {
 async function start() {
   try {
     validateConfig();
+
+    // Initialize PostgreSQL if configured
+    if (config.dbType === 'postgres') {
+      await initializePostgres();
+    }
+
     startExpirationChecker();
 
     app.listen(config.port, () => {
       console.log(`SignatureHub server running on port ${config.port}`);
       console.log(`Environment: ${config.env}`);
+      console.log(`Database: ${config.dbType}`);
       console.log(`Base URL: ${config.baseUrl}`);
     });
   } catch (error) {
@@ -107,17 +115,24 @@ async function start() {
 }
 
 // Graceful shutdown
+async function shutdown() {
+  stopExpirationChecker();
+  if (config.dbType === 'mysql') {
+    await closePool();
+  } else if (config.dbType === 'postgres') {
+    await closePgPool();
+  }
+}
+
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down...');
-  stopExpirationChecker();
-  await closePool();
+  await shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down...');
-  stopExpirationChecker();
-  await closePool();
+  await shutdown();
   process.exit(0);
 });
 

@@ -413,7 +413,7 @@ export async function declineRequest(
       if (adminContact) {
         // Build replacement URL for the admin
         let replacementUrl: string | undefined;
-        const declinedRole = getRoleByRequestId(request.id);
+        const declinedRole = await getRoleByRequestId(request.id);
         if (declinedRole && adminContact.adminRequestId) {
           const adminToken = await getTokenByRequestId(adminContact.adminRequestId);
           if (adminToken) {

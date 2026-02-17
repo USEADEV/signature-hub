@@ -19,8 +19,8 @@ export const config = {
   testEmail: process.env.TEST_EMAIL || '',
   testPhone: process.env.TEST_PHONE || '',
 
-  // Database type: 'sqlite' or 'mysql'
-  dbType: optionalEnv('DB_TYPE', 'sqlite') as 'sqlite' | 'mysql',
+  // Database type: 'sqlite', 'mysql', or 'postgres'
+  dbType: optionalEnv('DB_TYPE', 'sqlite') as 'sqlite' | 'mysql' | 'postgres',
 
   db: {
     host: optionalEnv('DB_HOST', 'localhost'),
@@ -28,6 +28,7 @@ export const config = {
     user: optionalEnv('DB_USER', 'root'),
     password: optionalEnv('DB_PASSWORD', ''),
     database: optionalEnv('DB_NAME', 'showconnect'),
+    ssl: optionalEnv('DB_SSL', 'false') === 'true',
   },
 
   twilio: {
