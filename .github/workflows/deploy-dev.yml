@@ -33,8 +33,7 @@ jobs:
           cp -r migrations deploy/
           cp package.json deploy/
           cp package-lock.json deploy/
-          cd deploy && npm ci --omit=dev
-          cd deploy && zip -r ../deploy.zip .
+          cd deploy && npm ci --omit=dev && zip -r ../deploy.zip .
 
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v3
