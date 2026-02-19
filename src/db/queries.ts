@@ -495,12 +495,20 @@ export async function createTemplate(input: CreateTemplateInput, tenantId: strin
 }
 
 export async function getTemplateByCode(templateCode: string, tenantId?: string): Promise<WaiverTemplate | null> {
-  let template: WaiverTemplate | null;
+  let template: WaiverTemplate | null = null;
   if (tenantId) {
+    // Try tenant-specific first
     template = await queryOne<WaiverTemplate>(
       `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = TRUE AND tenant_id = ?`,
       [templateCode, tenantId]
     );
+    // Fallback: try any tenant (shared templates)
+    if (!template) {
+      template = await queryOne<WaiverTemplate>(
+        `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = TRUE`,
+        [templateCode]
+      );
+    }
   } else {
     template = await queryOne<WaiverTemplate>(
       `SELECT * FROM waiver_templates WHERE template_code = ? AND is_active = TRUE`,

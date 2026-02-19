@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS signatures (
 -- Table: waiver_templates
 CREATE TABLE IF NOT EXISTS waiver_templates (
     id VARCHAR(36) PRIMARY KEY,
-    template_code VARCHAR(100) NOT NULL UNIQUE,
+    template_code VARCHAR(100) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     html_content TEXT NOT NULL,
@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS waiver_templates (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
-    tenant_id VARCHAR(100) NOT NULL DEFAULT 'default-tenant'
+    tenant_id VARCHAR(100) NOT NULL DEFAULT 'default-tenant',
+    UNIQUE (template_code, tenant_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_wt_template_code ON waiver_templates(template_code);
