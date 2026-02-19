@@ -98,17 +98,23 @@ router.get('/:packageCode/data', async (req: Request, res: Response) => {
     // Resolve signer-specific template variables ({{signerName}}, {{signerRoles}})
     // in the stored document_content. The package stores base content with these
     // unresolved; individual signing requests get them resolved per-signer.
-    // For the status page, combine all signers' names and roles.
+    // For the status page, show each signer with their respective roles.
     let resolvedContent = pkg.document_content || '';
     if (resolvedContent && signersWithDetails.length > 0) {
-      const allNames = signersWithDetails.map(s => s.name).join(', ');
+      // "Jil Walton (Owner), Alessandra Allen-Shinn (Rider, Trainer)"
+      const signerWithRoles = signersWithDetails.map(s => {
+        const roles = s.roles.map((r: { roleName: string }) =>
+          r.roleName.charAt(0).toUpperCase() + r.roleName.slice(1)
+        ).join(', ');
+        return `${s.name} (${roles})`;
+      }).join(', ');
       const allRoles = [...new Set(
         signersWithDetails.flatMap(s =>
           s.roles.map((r: { roleName: string }) => r.roleName.charAt(0).toUpperCase() + r.roleName.slice(1))
         )
       )].join(', ');
       resolvedContent = resolvedContent
-        .replace(/\{\{\s*signerName\s*\}\}/g, allNames)
+        .replace(/\{\{\s*signerName\s*\}\}/g, signerWithRoles)
         .replace(/\{\{\s*signerRoles\s*\}\}/g, allRoles)
         .replace(/\{\{\s*signerRolesList\s*\}\}/g, allRoles.toLowerCase());
     }
